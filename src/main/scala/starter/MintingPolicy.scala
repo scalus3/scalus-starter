@@ -48,7 +48,7 @@ object MintingPolicy extends DataParameterizedValidator {
         tx: TxInfo
     ): Unit = {
         // find the tokens minted by this policy id
-        val mintedTokens = tx.mint.toSortedMap.get(ownPolicyId).getOrFail("Tokens not found")
+        val mintedTokens = tx.mint.toSortedMap.getOrFail(ownPolicyId, "Tokens not found")
         mintedTokens.toList match
             // there should be only one token with the given name
             case List.Cons((tokName, _), tail) =>

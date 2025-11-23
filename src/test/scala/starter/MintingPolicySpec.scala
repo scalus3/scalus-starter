@@ -4,8 +4,9 @@ import com.bloxbean.cardano.client.account.Account
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
+import scalus.builtin.ByteString.utf8
 import scalus.builtin.Data.toData
-import scalus.builtin.{ByteString, Data, PlatformSpecific, given}
+import scalus.builtin.{ByteString, Data, platform, given}
 import scalus.cardano.ledger.ExUnits
 import scalus.ledger.api.v1.Value.*
 import scalus.ledger.api.v3.*
@@ -26,9 +27,7 @@ class MintingPolicySpec extends AnyFunSuite with ScalaCheckPropertyChecks with S
 
     private val account = new Account()
 
-    private val crypto = summon[PlatformSpecific] // platform specific crypto functions
-
-    private val tokenName = ByteString.fromString("CO2 Tonne")
+    private val tokenName = utf8"CO2 Tonne"
 
     private val adminPubKeyHash: PubKeyHash = PubKeyHash(
       ByteString.fromArray(account.hdKeyPair().getPublicKey.getKeyHash)
@@ -40,7 +39,7 @@ class MintingPolicySpec extends AnyFunSuite with ScalaCheckPropertyChecks with S
         MintingPolicyGenerator.makeMintingPolicyScript(adminPubKeyHash, tokenName)
 
     test("should fail when minted token name is not correct") {
-        val wrongTokenName = tokenName ++ ByteString.fromString("extra")
+        val wrongTokenName = tokenName ++ utf8"extra"
         val ctx = makeScriptContext(
           mint = Value(mintingScript.scriptHash, wrongTokenName, 1000),
           signatories = List(adminPubKeyHash)
@@ -57,7 +56,7 @@ class MintingPolicySpec extends AnyFunSuite with ScalaCheckPropertyChecks with S
     test("should fail when extra tokens are minted/burned") {
         val ctx = makeScriptContext(
           mint = Value(mintingScript.scriptHash, tokenName, 1000)
-              + Value(mintingScript.scriptHash, ByteString.fromString("Extra"), 1000),
+              + Value(mintingScript.scriptHash, utf8"Extra", 1000),
           signatories = List(adminPubKeyHash)
         )
 
@@ -86,7 +85,7 @@ class MintingPolicySpec extends AnyFunSuite with ScalaCheckPropertyChecks with S
     test("should fail when admin signature is not correct") {
         val ctx = makeScriptContext(
           mint = Value(mintingScript.scriptHash, tokenName, 1000),
-          signatories = List(PubKeyHash(crypto.blake2b_224(ByteString.fromString("wrong"))))
+          signatories = List(PubKeyHash(platform.blake2b_224(ByteString.fromString("wrong"))))
         )
 
         val exception = intercept[Exception] {

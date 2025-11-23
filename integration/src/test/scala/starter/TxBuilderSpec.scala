@@ -3,7 +3,6 @@ package starter
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.*
 import scalus.builtin.ByteString
 
 import scala.util.Try
@@ -19,7 +18,9 @@ class TxBuilderSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Befor
     override def beforeAll(): Unit = {
         val params = Try(txBuilder.protocolParams)
         if (!params.isSuccess) {
-            cancel("This test requires a Blockfrost API available. Start Yaci Devkit before running this test.")
+            cancel(
+              "This test requires a Blockfrost API available. Start Yaci Devkit before running this test."
+            )
         }
     }
 
@@ -28,12 +29,12 @@ class TxBuilderSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Befor
             case Right(tx) =>
                 assert(
                   ByteString.fromArray(tx.getBody.getMint.get(0).getAssets.get(0).getNameAsBytes) ==
-                  appCtx.tokenNameByteString
+                      appCtx.tokenNameByteString
                 )
                 assert(tx.getWitnessSet.getVkeyWitnesses.size() == 1)
                 assert(
                   ByteString.fromArray(tx.getWitnessSet.getVkeyWitnesses.get(0).getVkey) ==
-                  pubKey
+                      pubKey
                 )
             case Left(err) => fail(err)
     }
