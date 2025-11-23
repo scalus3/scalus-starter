@@ -7,7 +7,7 @@ import scalus.builtin.Data
 import scalus.builtin.Data.toData
 import scalus.ledger.api.v1.*
 import scalus.prelude.{*, given}
-import scalus.sir.SIR
+import scalus.compiler.sir.SIR
 import scalus.uplc.Program
 
 import scala.language.implicitConversions

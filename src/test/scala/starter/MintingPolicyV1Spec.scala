@@ -5,12 +5,13 @@ import org.scalacheck.Arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
+import scalus.builtin.ByteString.utf8
 import scalus.builtin.Data.toData
-import scalus.builtin.{ByteString, Data, PlatformSpecific, given}
+import scalus.builtin.{ByteString, Data, platform, given}
 import scalus.ledger.api.v1.*
-import scalus.prelude.*
 import scalus.ledger.api.v1.Value.*
-import scalus.testkit.ScalusTest
+import scalus.prelude.*
+import scalus.testing.kit.ScalusTest
 import scalus.uplc.*
 import scalus.uplc.eval.*
 
@@ -21,9 +22,7 @@ class MintingPolicyV1Spec extends AnyFunSuite with ScalaCheckPropertyChecks with
 
     private val account = new Account()
 
-    private val crypto = summon[PlatformSpecific] // platform specific crypto functions
-
-    private val tokenName = ByteString.fromString("CO2 Tonne")
+    private val tokenName = utf8"CO2 Tonne"
 
     private val adminPubKeyHash: PubKeyHash = PubKeyHash(
       ByteString.fromArray(account.hdKeyPair().getPublicKey.getKeyHash)
@@ -35,7 +34,7 @@ class MintingPolicyV1Spec extends AnyFunSuite with ScalaCheckPropertyChecks with
         MintingPolicyV1Generator.makeMintingPolicyScript(adminPubKeyHash, tokenName)
 
     test("should fail when minted token name is not correct") {
-        val wrongTokenName = tokenName ++ ByteString.fromString("extra")
+        val wrongTokenName = tokenName ++ utf8"extra"
         val ctx = makeScriptContext(
           mint = Value(mintingScript.scriptHash, wrongTokenName, 1000),
           signatories = List(adminPubKeyHash)
@@ -81,7 +80,7 @@ class MintingPolicyV1Spec extends AnyFunSuite with ScalaCheckPropertyChecks with
     test("should fail when admin signature is not correct") {
         val ctx = makeScriptContext(
           mint = Value(mintingScript.scriptHash, tokenName, 1000),
-          signatories = List(PubKeyHash(crypto.blake2b_224(ByteString.fromString("wrong"))))
+          signatories = List(PubKeyHash(platform.blake2b_224(ByteString.fromString("wrong"))))
         )
 
         val exception = intercept[Exception] {

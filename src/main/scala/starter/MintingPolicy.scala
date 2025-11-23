@@ -5,9 +5,9 @@ import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.Data.{FromData, ToData, toData}
 import scalus.builtin.{ByteString, Data, FromData, ToData}
+import scalus.compiler.sir.SIR
 import scalus.ledger.api.v3.*
 import scalus.prelude.{*, given}
-import scalus.sir.SIR
 import scalus.uplc.Program
 
 import scala.language.implicitConversions

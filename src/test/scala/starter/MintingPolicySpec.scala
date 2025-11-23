@@ -6,17 +6,18 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
 import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data, PlatformSpecific, given}
+import scalus.cardano.ledger.ExUnits
 import scalus.ledger.api.v1.Value.*
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
-import scalus.testkit.ScalusTest
+import scalus.testing.kit.ScalusTest
 import scalus.uplc.*
 import scalus.uplc.eval.*
 
 import scala.language.implicitConversions
 
 enum Expected {
-    case Success(budget: ExBudget)
+    case Success(budget: ExUnits)
     case Failure(reason: String)
 }
 
@@ -107,13 +108,13 @@ class MintingPolicySpec extends AnyFunSuite with ScalaCheckPropertyChecks with S
         // run the minting policy script as a Plutus script
         assertEval(
           mintingScript.program $ ctx.toData,
-          Success(ExBudget.fromCpuAndMemory(cpu = 19966280, memory = 69172))
+          Success(ExUnits(steps = 19694280, memory = 67472))
         )
     }
 
-    test(s"validator size is 1418 bytes") {
+    test(s"validator size is 1409 bytes") {
         val size = mintingScript.program.cborEncoded.length
-        assert(size == 1418)
+        assert(size == 1409)
     }
 
     private def makeScriptContext(mint: Value, signatories: List[PubKeyHash]) =
