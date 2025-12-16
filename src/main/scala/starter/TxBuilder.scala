@@ -1,7 +1,7 @@
 package starter
 
 import scalus.builtin.Data
-import scalus.cardano.ledger.{AssetName, Transaction, Value}
+import scalus.cardano.ledger.{AssetName, Transaction, Utxo, Value}
 import scalus.cardano.txbuilder.TxBuilder as ScalusTxBuilder
 import scalus.utils.await
 
@@ -13,11 +13,23 @@ class TxBuilder(ctx: AppCtx) {
 
     def makeMintingTx(amount: Long): Either[String, Transaction] = {
         Try {
+            // Fetch UTXOs for explicit handling
+            val utxos = ctx.provider
+                .findUtxos(ctx.address, None, None, None, None)
+                .await(10.seconds)
+                .getOrElse(throw new RuntimeException("Failed to fetch UTXOs"))
+
             val assetName = AssetName(ctx.tokenNameByteString)
             val assets = Map(assetName -> amount)
             val mintedValue = Value.asset(ctx.mintingScript.policyId, assetName, amount)
 
+            // Convert first UTXO to Utxo type for collateral
+            val (input, output) = utxos.head
+            val firstUtxo = Utxo(input, output)
+
             ScalusTxBuilder(ctx.cardanoInfo)
+                .spend(utxos) // Spend all UTXOs
+                .collaterals(firstUtxo) // Use same UTXO as collateral
                 .mintAndAttach(
                   redeemer = Data.unit,
                   assets = assets,
@@ -34,11 +46,23 @@ class TxBuilder(ctx: AppCtx) {
 
     def makeBurningTx(amount: Long): Either[String, Transaction] = {
         Try {
+            // Fetch UTXOs for explicit handling
+            val utxos = ctx.provider
+                .findUtxos(ctx.address, None, None, None, None)
+                .await(10.seconds)
+                .getOrElse(throw new RuntimeException("Failed to fetch UTXOs"))
+
             val assetName = AssetName(ctx.tokenNameByteString)
             // amount should be negative for burning
             val assets = Map(assetName -> amount)
 
+            // Convert first UTXO to Utxo type for collateral
+            val (input, output) = utxos.head
+            val firstUtxo = Utxo(input, output)
+
             ScalusTxBuilder(ctx.cardanoInfo)
+                .spend(utxos) // Spend all UTXOs
+                .collaterals(firstUtxo) // Use same UTXO as collateral
                 .mintAndAttach(
                   redeemer = Data.unit,
                   assets = assets,

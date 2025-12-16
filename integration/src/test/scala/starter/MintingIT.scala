@@ -29,21 +29,36 @@ class MintingIT extends AnyFunSuite with BeforeAndAfterAll {
 
     private def waitBlock(): Unit = Thread.sleep(3000)
 
+    private var skipTests = false
+    private var skipReason = ""
+
     override def beforeAll(): Unit = {
-        // Check if Yaci DevKit is available by trying to query UTXOs
-        val available = Try {
+        // Check if Yaci DevKit is available and account is funded
+        val utxosResult = Try {
             appCtx.provider
                 .findUtxos(appCtx.address, None, None, None, None)
                 .await(10.seconds)
         }
-        if (available.isFailure) {
-            cancel(
-              "This test requires a Blockfrost API available. Start Yaci Devkit before running this test."
-            )
+        utxosResult match {
+            case scala.util.Failure(e) =>
+                skipTests = true
+                skipReason =
+                    s"This test requires a Blockfrost API available. Start Yaci Devkit before running this test. Error: ${e.getMessage}"
+            case scala.util.Success(Left(e)) =>
+                skipTests = true
+                skipReason = s"Failed to query UTXOs from Yaci Devkit: ${e.getMessage}"
+            case scala.util.Success(Right(utxos)) =>
+                val totalAda = utxos.values.map(_.value.coin.value).sum
+                if (totalAda < 10_000_000) { // Need at least 10 ADA
+                    skipTests = true
+                    skipReason =
+                        s"Account has insufficient funds (${totalAda} lovelace). Fund the test account first using Yaci Devkit."
+                }
         }
     }
 
     test("mint and burn tokens") {
+        if (skipTests) cancel(skipReason)
         val result = for
             // mint 1000 tokens
             tx <- txBuilder.makeMintingTx(1000)

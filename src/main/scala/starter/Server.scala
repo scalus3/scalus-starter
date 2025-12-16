@@ -4,7 +4,10 @@ import com.bloxbean.cardano.client.account.Account
 import com.bloxbean.cardano.client.common.model.{Network, Networks}
 import scalus.builtin.ByteString
 import scalus.cardano.address.Address
-import scalus.cardano.ledger.{AddrKeyHash, CardanoInfo}
+import scalus.cardano.ledger.{AddrKeyHash, CardanoInfo, SlotConfig}
+import scalus.cardano.address.{Network as ScalusNetwork}
+import scalus.utils.await
+import scala.concurrent.duration.*
 import scalus.cardano.node.{BlockfrostProvider, Provider}
 import scalus.cardano.txbuilder.TransactionSigner
 import scalus.ledger.api.v3.PubKeyHash
@@ -76,9 +79,23 @@ object AppCtx {
         val mnemonic =
             "test test test test test test test test test test test test test test test test test test test test test test test sauce"
         val account = Account.createFromMnemonic(network, mnemonic)
+        val provider = BlockfrostProvider.localYaci
+
+        // Fetch protocol parameters from Yaci DevKit
+        val protocolParams = provider.fetchLatestParams().await(10.seconds)
+
+        // Yaci DevKit uses slot length of 1 second and start time of 0
+        val yaciSlotConfig = SlotConfig(
+          zeroTime = 0L,
+          zeroSlot = 0L,
+          slotLength = 1000
+        )
+
+        val cardanoInfo = CardanoInfo(protocolParams, ScalusNetwork.Testnet, yaciSlotConfig)
+
         new AppCtx(
-          CardanoInfo.preprod,
-          BlockfrostProvider.localYaci,
+          cardanoInfo,
+          provider,
           account,
           createSigner(account),
           tokenName
