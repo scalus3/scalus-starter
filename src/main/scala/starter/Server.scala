@@ -10,6 +10,7 @@ import scalus.utils.await
 import scala.concurrent.duration.*
 import scalus.cardano.node.{BlockfrostProvider, Provider}
 import scalus.cardano.txbuilder.TransactionSigner
+import scalus.cardano.wallet.BloxbeanAccount
 import scalus.ledger.api.v3.PubKeyHash
 import sttp.client4.DefaultFutureBackend
 import sttp.tapir.*
@@ -43,11 +44,8 @@ case class AppCtx(
 }
 
 object AppCtx {
-    private def createSigner(account: Account): TransactionSigner = {
-        val privateKey = ByteString.fromArray(account.hdKeyPair().getPrivateKey.getKeyData.take(32))
-        val publicKey = ByteString.fromArray(account.hdKeyPair().getPublicKey.getKeyData)
-        TransactionSigner(Set((privateKey, publicKey)))
-    }
+    // Standard derivation path for Cardano payment keys
+    private val PaymentDerivationPath = "m/1852'/1815'/0'/0/0"
 
     def apply(
         network: Network,
@@ -55,21 +53,24 @@ object AppCtx {
         blockfrostApiKey: String,
         tokenName: String
     ): AppCtx = {
-        val (cardanoInfo, provider) =
+        val (cardanoInfo, provider, scalusNetwork) =
             if network == Networks.mainnet() then
-                (CardanoInfo.mainnet, BlockfrostProvider.mainnet(blockfrostApiKey))
+                (CardanoInfo.mainnet, BlockfrostProvider.mainnet(blockfrostApiKey), ScalusNetwork.Mainnet)
             else if network == Networks.preview() then
-                (CardanoInfo.preview, BlockfrostProvider.preview(blockfrostApiKey))
+                (CardanoInfo.preview, BlockfrostProvider.preview(blockfrostApiKey), ScalusNetwork.Testnet)
             else if network == Networks.preprod() then
-                (CardanoInfo.preprod, BlockfrostProvider.preprod(blockfrostApiKey))
+                (CardanoInfo.preprod, BlockfrostProvider.preprod(blockfrostApiKey), ScalusNetwork.Testnet)
             else sys.error(s"Unsupported network: $network")
 
         val account = Account.createFromMnemonic(network, mnemonic)
+        val bloxbeanAccount = BloxbeanAccount(scalusNetwork, mnemonic, PaymentDerivationPath)
+        val signer = new TransactionSigner(Set(bloxbeanAccount.paymentKeyPair))
+
         new AppCtx(
           cardanoInfo,
           provider,
           account,
-          createSigner(account),
+          signer,
           tokenName
         )
     }
@@ -93,11 +94,15 @@ object AppCtx {
 
         val cardanoInfo = CardanoInfo(protocolParams, ScalusNetwork.Testnet, yaciSlotConfig)
 
+        // Use BloxbeanAccount for proper HD key signing
+        val bloxbeanAccount = BloxbeanAccount(ScalusNetwork.Testnet, mnemonic, PaymentDerivationPath)
+        val signer = new TransactionSigner(Set(bloxbeanAccount.paymentKeyPair))
+
         new AppCtx(
           cardanoInfo,
           provider,
           account,
-          createSigner(account),
+          signer,
           tokenName
         )
     }
