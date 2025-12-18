@@ -5,7 +5,7 @@ import com.bloxbean.cardano.client.common.model.{Network, Networks}
 import scalus.builtin.ByteString
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.{AddrKeyHash, CardanoInfo, SlotConfig}
-import scalus.cardano.address.{Network as ScalusNetwork}
+import scalus.cardano.address.Network as ScalusNetwork
 import scalus.utils.await
 import scala.concurrent.duration.*
 import scalus.cardano.node.{BlockfrostProvider, Provider}
@@ -130,7 +130,7 @@ class Server(ctx: AppCtx):
         .errorOut(stringBody)
         .handle(mintTokens)
 
-    private val txBuilder = TxBuilder(ctx)
+    private val txBuilder = Transactions(ctx)
 
     private val apiEndpoints = List(mint)
     private val swaggerEndpoints = SwaggerInterpreter()

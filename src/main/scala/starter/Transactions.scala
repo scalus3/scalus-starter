@@ -9,7 +9,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.*
 import scala.util.Try
 
-class TxBuilder(ctx: AppCtx) {
+class Transactions(ctx: AppCtx) {
 
     def makeMintingTx(amount: Long): Either[String, Transaction] = {
         Try {

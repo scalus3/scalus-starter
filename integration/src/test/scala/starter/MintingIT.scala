@@ -21,7 +21,7 @@ class MintingIT extends AnyFunSuite with YaciDevKitSpec {
 
     test("mint and burn tokens") {
         val appCtx = createAppCtx("CO2 Tonne")
-        val txBuilder = TxBuilder(appCtx)
+        val txBuilder = Transactions(appCtx)
 
         val result = for
             // mint 1000 tokens

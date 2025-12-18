@@ -8,7 +8,7 @@ class TxBuilderSpec extends AnyFunSuite with ScalaCheckPropertyChecks with YaciD
 
     test("create minting transaction") {
         val appCtx = createAppCtx("CO2 Tonne")
-        val txBuilder = TxBuilder(appCtx)
+        val txBuilder = Transactions(appCtx)
 
         txBuilder.makeMintingTx(1000) match
             case Right(tx) =>
