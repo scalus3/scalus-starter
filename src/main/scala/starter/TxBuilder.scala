@@ -36,7 +36,7 @@ class TxBuilder(ctx: AppCtx) {
                   redeemer = Data.unit,
                   requiredSigners = Set(ctx.addrKeyHash)
                 )
-                .payTo(ctx.address, mintedValue + Value.ada(2))
+                .payTo(ctx.address, mintedValue)
                 .complete(ctx.provider, ctx.address)
                 .await(30.seconds)
                 .sign(ctx.signer)
