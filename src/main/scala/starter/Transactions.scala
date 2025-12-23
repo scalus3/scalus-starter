@@ -2,7 +2,7 @@ package starter
 
 import scalus.builtin.Data
 import scalus.cardano.ledger.{AssetName, Transaction, Utxo, Value}
-import scalus.cardano.txbuilder.TxBuilder as ScalusTxBuilder
+import scalus.cardano.txbuilder.TxBuilder
 import scalus.utils.await
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -27,7 +27,7 @@ class Transactions(ctx: AppCtx) {
             val (input, output) = utxos.head
             val firstUtxo = Utxo(input, output)
 
-            ScalusTxBuilder(ctx.cardanoInfo)
+            TxBuilder(ctx.cardanoInfo)
                 .spend(utxos) // Spend all UTXOs
                 .collaterals(firstUtxo) // Use same UTXO as collateral
                 .mint(
@@ -60,7 +60,7 @@ class Transactions(ctx: AppCtx) {
             val (input, output) = utxos.head
             val firstUtxo = Utxo(input, output)
 
-            ScalusTxBuilder(ctx.cardanoInfo)
+            TxBuilder(ctx.cardanoInfo)
                 .spend(utxos) // Spend all UTXOs
                 .collaterals(firstUtxo) // Use same UTXO as collateral
                 .mint(

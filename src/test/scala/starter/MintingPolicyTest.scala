@@ -22,7 +22,7 @@ enum Expected {
     case Failure(reason: String)
 }
 
-class MintingPolicySpec extends AnyFunSuite with ScalaCheckPropertyChecks with ScalusTest {
+class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with ScalusTest {
     import Expected.*
 
     private val account = new Account()

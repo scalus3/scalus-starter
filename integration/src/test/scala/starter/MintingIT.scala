@@ -12,7 +12,7 @@ import scala.concurrent.duration.*
   * The container starts automatically before tests and stops after.
   * No manual Yaci DevKit setup required.
   */
-class MintingIT extends AnyFunSuite with YaciDevKitSpec {
+class MintingIT extends AnyFunSuite with YaciDevKitTest {
 
     private def submitTx(appCtx: AppCtx, tx: Transaction): Either[String, String] =
         appCtx.provider.submit(tx).await(30.seconds).map(_.toHex).left.map(_.toString)

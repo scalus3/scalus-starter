@@ -69,7 +69,7 @@ object YaciDevKitContainer {
   * }
   * }}}
   */
-trait YaciDevKitSpec extends BeforeAndAfterAll { self: Suite =>
+trait YaciDevKitTest extends BeforeAndAfterAll { self: Suite =>
 
     /** Override this to customize the Yaci DevKit configuration */
     def yaciDevKitConfig: YaciDevKitConfig = YaciDevKitConfig()

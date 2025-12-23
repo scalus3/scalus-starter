@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.cardano.ledger.AssetName
 
-class TxBuilderSpec extends AnyFunSuite with ScalaCheckPropertyChecks with YaciDevKitSpec {
+class TransactionsTest extends AnyFunSuite with ScalaCheckPropertyChecks with YaciDevKitTest {
 
     test("create minting transaction") {
         val appCtx = createAppCtx("CO2 Tonne")
