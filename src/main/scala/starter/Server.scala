@@ -7,11 +7,13 @@ import scalus.cardano.address.Address
 import scalus.cardano.ledger.{AddrKeyHash, CardanoInfo, SlotConfig}
 import scalus.cardano.address.Network as ScalusNetwork
 import scalus.utils.await
+
 import scala.concurrent.duration.*
 import scalus.cardano.node.{BlockfrostProvider, Provider}
 import scalus.cardano.txbuilder.TransactionSigner
 import scalus.cardano.wallet.BloxbeanAccount
 import scalus.ledger.api.v3.PubKeyHash
+import scalus.testing.yaci.TestContext
 import sttp.client4.DefaultFutureBackend
 import sttp.tapir.*
 import sttp.tapir.server.netty.sync.NettySyncServer
@@ -46,6 +48,16 @@ case class AppCtx(
 object AppCtx {
     // Standard derivation path for Cardano payment keys
     private val PaymentDerivationPath = "m/1852'/1815'/0'/0/0"
+    
+    def fromTestContext(ctx: TestContext, tokenName: String): AppCtx = {
+        new AppCtx(
+          ctx.cardanoInfo,
+          ctx.provider,
+          ctx.account.account,
+          ctx.signer,
+          tokenName
+        )
+    }
 
     def apply(
         network: Network,
@@ -95,7 +107,7 @@ object AppCtx {
         val provider = BlockfrostProvider.localYaci
 
         // Fetch protocol parameters from Yaci DevKit
-        val protocolParams = provider.fetchLatestParams().await(10.seconds)
+        val protocolParams = provider.fetchLatestParams.await(10.seconds)
 
         // Yaci DevKit uses slot length of 1 second and start time of 0
         val yaciSlotConfig = SlotConfig(
