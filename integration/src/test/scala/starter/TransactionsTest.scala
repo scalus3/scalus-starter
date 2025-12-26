@@ -3,11 +3,13 @@ package starter
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.cardano.ledger.AssetName
+import scalus.testing.yaci.YaciDevKit
 
-class TransactionsTest extends AnyFunSuite with ScalaCheckPropertyChecks with YaciDevKitTest {
+class TransactionsTest extends AnyFunSuite with ScalaCheckPropertyChecks with YaciDevKit {
 
     test("create minting transaction") {
-        val appCtx = createAppCtx("CO2 Tonne")
+        val ctx = createTestContext()
+        val appCtx = AppCtx.fromTestContext(ctx, "CO2 Tonne")
         val txBuilder = Transactions(appCtx)
 
         txBuilder.makeMintingTx(1000) match
