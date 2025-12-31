@@ -95,7 +95,7 @@ object AppCtx {
         val provider = BlockfrostProvider.localYaci
 
         // Fetch protocol parameters from Yaci DevKit
-        val protocolParams = provider.fetchLatestParams().await(10.seconds)
+        val protocolParams = provider.fetchLatestParams.await(10.seconds)
 
         // Yaci DevKit uses slot length of 1 second and start time of 0
         val yaciSlotConfig = SlotConfig(
