@@ -19,9 +19,27 @@ import sttp.tapir.swagger.bundle.SwaggerInterpreter
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-// Provide sttp backend for BlockfrostProvider
+// STTP backend required for BlockfrostProvider's HTTP calls
 given sttp.client4.Backend[scala.concurrent.Future] = DefaultFutureBackend()
 
+/** Application context holding all configuration and dependencies.
+  *
+  * This is the central configuration object that wires together:
+  *   - Network connection (via Provider)
+  *   - Wallet/signing capabilities
+  *   - Minting script configuration
+  *
+  * @param cardanoInfo
+  *   protocol parameters and network configuration
+  * @param provider
+  *   blockchain data provider (Blockfrost or local node)
+  * @param account
+  *   HD wallet account for address derivation
+  * @param signer
+  *   transaction signer with private keys
+  * @param tokenName
+  *   name of the token this instance will mint/burn
+  */
 case class AppCtx(
     cardanoInfo: CardanoInfo,
     provider: Provider,
@@ -29,30 +47,50 @@ case class AppCtx(
     signer: TransactionSigner,
     tokenName: String
 ) {
+    /** Public key hash for use in Plutus scripts (on-chain format) */
     lazy val pubKeyHash: PubKeyHash = PubKeyHash(
       ByteString.fromArray(account.hdKeyPair().getPublicKey.getKeyHash)
     )
+
+    /** Address key hash for transaction building (off-chain format) */
     lazy val addrKeyHash: AddrKeyHash = AddrKeyHash(
       ByteString.fromArray(account.hdKeyPair().getPublicKey.getKeyHash)
     )
+
     lazy val tokenNameByteString: ByteString = ByteString.fromString(tokenName)
     lazy val address: Address = Address.fromBech32(account.baseAddress())
-    // combined minting script hash and token name
+
+    /** Full asset identifier: policy ID + token name (used for lookups) */
     lazy val unitName: String = (mintingScript.scriptHash ++ tokenNameByteString).toHex
+
+    /** The configured minting policy script, parameterized with our admin key and token name */
     lazy val mintingScript: MintingPolicyScript =
         MintingPolicyGenerator.makeMintingPolicyScript(pubKeyHash, tokenNameByteString)
 }
 
+/** Factory methods for creating AppCtx for different environments. */
 object AppCtx {
-    // Standard derivation path for Cardano payment keys
+    /** BIP44 derivation path for Cardano payment keys (CIP-1852) */
     private val PaymentDerivationPath = "m/1852'/1815'/0'/0/0"
 
+    /** Creates an AppCtx for mainnet or public testnets using Blockfrost.
+      *
+      * @param network
+      *   the Cardano network (mainnet, preprod, preview)
+      * @param mnemonic
+      *   24-word seed phrase for wallet derivation
+      * @param blockfrostApiKey
+      *   API key from blockfrost.io
+      * @param tokenName
+      *   name for the token to mint
+      */
     def apply(
         network: Network,
         mnemonic: String,
         blockfrostApiKey: String,
         tokenName: String
     ): AppCtx = {
+        // Configure provider and network settings based on target network
         val (cardanoInfo, provider, scalusNetwork) =
             if network == Networks.mainnet() then
                 (
@@ -74,6 +112,7 @@ object AppCtx {
                 )
             else sys.error(s"Unsupported network: $network")
 
+        // Create account from mnemonic using standard derivation path
         val account = Account.createFromMnemonic(network, mnemonic)
         val bloxbeanAccount = BloxbeanAccount(scalusNetwork, mnemonic, PaymentDerivationPath)
         val signer = new TransactionSigner(Set(bloxbeanAccount.paymentKeyPair))
@@ -87,26 +126,40 @@ object AppCtx {
         )
     }
 
+    /** Creates an AppCtx for local development with Yaci DevKit.
+      *
+      * This uses a hardcoded test mnemonic and connects to a local Yaci DevKit node.
+      * No API keys required - perfect for development and testing.
+      *
+      * Prerequisites: Yaci DevKit running locally (see https://devkit.yaci.xyz)
+      *
+      * @param tokenName
+      *   name for the token to mint
+      */
     def yaciDevKit(tokenName: String): AppCtx = {
+        // Custom network ID for local devkit
         val network = new Network(0, 42)
+
+        // Standard test mnemonic - DO NOT use in production!
         val mnemonic =
             "test test test test test test test test test test test test test test test test test test test test test test test sauce"
         val account = Account.createFromMnemonic(network, mnemonic)
+
+        // Connect to local Yaci DevKit Blockfrost-compatible API
         val provider = BlockfrostProvider.localYaci
 
-        // Fetch protocol parameters from Yaci DevKit
+        // Fetch current protocol parameters from the local node
         val protocolParams = provider.fetchLatestParams.await(10.seconds)
 
-        // Yaci DevKit uses slot length of 1 second and start time of 0
+        // Yaci DevKit slot configuration: 1 second slots, starting at epoch 0
         val yaciSlotConfig = SlotConfig(
           zeroTime = 0L,
           zeroSlot = 0L,
-          slotLength = 1000
+          slotLength = 1000 // milliseconds
         )
 
         val cardanoInfo = CardanoInfo(protocolParams, ScalusNetwork.Testnet, yaciSlotConfig)
 
-        // Use BloxbeanAccount for proper HD key signing
         val bloxbeanAccount =
             BloxbeanAccount(ScalusNetwork.Testnet, mnemonic, PaymentDerivationPath)
         val signer = new TransactionSigner(Set(bloxbeanAccount.paymentKeyPair))
@@ -122,7 +175,17 @@ object AppCtx {
 
 }
 
+/** REST API server for the token minting service.
+  *
+  * Built with Tapir for type-safe endpoint definitions and automatic OpenAPI generation.
+  * Swagger UI is available at /docs for interactive API exploration.
+  *
+  * @param ctx
+  *   application context with blockchain connection and signing capabilities
+  */
 class Server(ctx: AppCtx):
+    // Define the mint endpoint using Tapir's type-safe DSL
+    // PUT /mint?amount=100 -> returns transaction hash or error
     private val mint = endpoint.put
         .in("mint")
         .in(query[Long]("amount"))
@@ -133,9 +196,12 @@ class Server(ctx: AppCtx):
     private val txBuilder = Transactions(ctx)
 
     private val apiEndpoints = List(mint)
+
+    // Auto-generate Swagger/OpenAPI documentation from endpoint definitions
     private val swaggerEndpoints = SwaggerInterpreter()
         .fromEndpoints[[X] =>> X](apiEndpoints.map(_.endpoint), "Token Minter", "0.1")
 
+    /** Handles mint requests by building and submitting a transaction. */
     private def mintTokens(amount: Long): Either[String, String] =
         val result = txBuilder.submitMintingTx(amount)
         result match
@@ -145,6 +211,12 @@ class Server(ctx: AppCtx):
                 println(s"Tokens minted successfully: $value")
         result
 
+    /** Starts the HTTP server on port 8088.
+      *
+      * Endpoints:
+      *   - PUT /mint?amount=N - Mint N tokens
+      *   - GET /docs - Swagger UI
+      */
     def start(): Unit =
         NettySyncServer()
             .port(8088)
