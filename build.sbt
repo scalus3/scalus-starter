@@ -35,7 +35,7 @@ lazy val core = (project in file("."))
 
 // Integration tests
 lazy val integration = (project in file("integration"))
-    .dependsOn(core) // your current subproject
+    .dependsOn(core % "compile->compile;test->test")
     .settings(
       publish / skip := true,
       // test dependencies
