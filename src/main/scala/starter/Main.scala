@@ -1,8 +1,9 @@
 package starter
 
-import com.bloxbean.cardano.client.common.model.Networks
 import com.monovore.decline.{Command, Opts}
 import scalus.*
+import scalus.cardano.address.Network
+import scalus.crypto.ed25519.given
 
 import scala.language.implicitConversions
 
@@ -38,8 +39,7 @@ object Cli:
         val mnemonic = System.getenv("MNEMONIC") match
             case null     => sys.error("MNEMONIC environment variable is not set")
             case mnemonic => mnemonic
-        val network = Networks.preprod()
-        val appCtx = AppCtx(network, mnemonic, blockfrostApiKey, "CO2 Tonne")
+        val appCtx = AppCtx(Network.Testnet, mnemonic, blockfrostApiKey, "CO2 Tonne")
         println("Starting the server...")
         Server(appCtx).start()
     }

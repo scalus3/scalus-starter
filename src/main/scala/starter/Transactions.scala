@@ -1,6 +1,6 @@
 package starter
 
-import scalus.builtin.Data
+import scalus.uplc.builtin.Data
 import scalus.cardano.ledger.{AssetName, Transaction, Utxo, Value}
 import scalus.cardano.txbuilder.TxBuilder
 import scalus.utils.await
@@ -11,8 +11,8 @@ import scala.util.Try
 
 /** Transaction building logic for minting and burning tokens.
   *
-  * This class demonstrates how to construct Cardano transactions that interact
-  * with Plutus scripts using the Scalus TxBuilder API.
+  * This class demonstrates how to construct Cardano transactions that interact with Plutus scripts
+  * using the Scalus TxBuilder API.
   *
   * Key concepts:
   *   - UTxO selection: Cardano uses unspent transaction outputs as inputs
@@ -36,7 +36,7 @@ class Transactions(ctx: AppCtx) {
         Try {
             // Fetch all UTxOs at our address - these are our spendable funds
             val utxos = ctx.provider
-                .findUtxos(ctx.address, None, None, None, None)
+                .findUtxos(ctx.address)
                 .await(10.seconds)
                 .getOrElse(throw new RuntimeException("Failed to fetch UTXOs"))
 
@@ -68,8 +68,7 @@ class Transactions(ctx: AppCtx) {
 
     /** Builds a transaction that burns existing tokens.
       *
-      * Burning uses a negative mint amount. The tokens to burn must exist
-      * in the UTxOs being spent.
+      * Burning uses a negative mint amount. The tokens to burn must exist in the UTxOs being spent.
       *
       * @param amount
       *   number of tokens to burn (should be negative)
@@ -79,7 +78,7 @@ class Transactions(ctx: AppCtx) {
     def makeBurningTx(amount: Long): Either[String, Transaction] = {
         Try {
             val utxos = ctx.provider
-                .findUtxos(ctx.address, None, None, None, None)
+                .findUtxos(ctx.address)
                 .await(10.seconds)
                 .getOrElse(throw new RuntimeException("Failed to fetch UTXOs"))
 

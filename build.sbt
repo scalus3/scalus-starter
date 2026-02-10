@@ -1,4 +1,4 @@
-val scalusVersion = "0.14.2"
+val scalusVersion = "0.15.0"
 val scalusPluginVersion = scalusVersion
 
 resolvers += Resolver.sonatypeCentralSnapshots
@@ -17,10 +17,7 @@ lazy val core = (project in file("."))
       libraryDependencies ++= Seq(
         // Scalus
         "org.scalus" %% "scalus" % scalusVersion,
-        "org.scalus" %% "scalus-bloxbean-cardano-client-lib" % scalusVersion,
-        // Cardano Client library
-        "com.bloxbean.cardano" % "cardano-client-lib" % "0.7.1",
-        "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.7.1",
+        "org.scalus" %% "scalus-cardano-ledger" % scalusVersion,
         // Tapir for API definition
         "com.softwaremill.sttp.tapir" %% "tapir-netty-server-sync" % "1.13.4",
         "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-bundle" % "1.13.4",

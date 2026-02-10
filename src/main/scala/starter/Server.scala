@@ -1,17 +1,15 @@
 package starter
 
-import com.bloxbean.cardano.client.account.Account
-import com.bloxbean.cardano.client.common.model.{Network, Networks}
-import scalus.builtin.ByteString
-import scalus.cardano.address.Address
-import scalus.cardano.ledger.{AddrKeyHash, CardanoInfo, SlotConfig}
-import scalus.cardano.address.Network as ScalusNetwork
+import scalus.uplc.builtin.ByteString
+import scalus.cardano.address.{Address, Network as ScalusNetwork}
+import scalus.cardano.ledger.{AddrKeyHash, CardanoInfo}
 import scalus.utils.await
 import scala.concurrent.duration.*
-import scalus.cardano.node.{BlockfrostProvider, Provider}
+import scalus.cardano.node.{BlockfrostProvider, BlockchainProvider}
 import scalus.cardano.txbuilder.TransactionSigner
-import scalus.cardano.wallet.BloxbeanAccount
-import scalus.ledger.api.v3.PubKeyHash
+import scalus.cardano.wallet.hd.HdAccount
+import scalus.cardano.onchain.plutus.v1.PubKeyHash
+import scalus.crypto.ed25519.Ed25519Signer
 import sttp.client4.DefaultFutureBackend
 import sttp.tapir.*
 import sttp.tapir.server.netty.sync.NettySyncServer
@@ -42,23 +40,20 @@ given sttp.client4.Backend[scala.concurrent.Future] = DefaultFutureBackend()
   */
 case class AppCtx(
     cardanoInfo: CardanoInfo,
-    provider: Provider,
-    account: Account,
+    provider: BlockchainProvider,
+    account: HdAccount,
     signer: TransactionSigner,
     tokenName: String
 ) {
+
     /** Public key hash for use in Plutus scripts (on-chain format) */
-    lazy val pubKeyHash: PubKeyHash = PubKeyHash(
-      ByteString.fromArray(account.hdKeyPair().getPublicKey.getKeyHash)
-    )
+    lazy val pubKeyHash: PubKeyHash = PubKeyHash(account.paymentKeyHash)
 
     /** Address key hash for transaction building (off-chain format) */
-    lazy val addrKeyHash: AddrKeyHash = AddrKeyHash(
-      ByteString.fromArray(account.hdKeyPair().getPublicKey.getKeyHash)
-    )
+    lazy val addrKeyHash: AddrKeyHash = account.paymentKeyHash
 
     lazy val tokenNameByteString: ByteString = ByteString.fromString(tokenName)
-    lazy val address: Address = Address.fromBech32(account.baseAddress())
+    lazy val address: Address = account.baseAddress(cardanoInfo.network)
 
     /** Full asset identifier: policy ID + token name (used for lookups) */
     lazy val unitName: String = (mintingScript.scriptHash ++ tokenNameByteString).toHex
@@ -70,8 +65,6 @@ case class AppCtx(
 
 /** Factory methods for creating AppCtx for different environments. */
 object AppCtx {
-    /** BIP44 derivation path for Cardano payment keys (CIP-1852) */
-    private val PaymentDerivationPath = "m/1852'/1815'/0'/0/0"
 
     /** Creates an AppCtx for mainnet or public testnets using Blockfrost.
       *
@@ -85,90 +78,57 @@ object AppCtx {
       *   name for the token to mint
       */
     def apply(
-        network: Network,
+        network: ScalusNetwork,
         mnemonic: String,
         blockfrostApiKey: String,
         tokenName: String
-    ): AppCtx = {
+    )(using Ed25519Signer): AppCtx = {
         // Configure provider and network settings based on target network
-        val (cardanoInfo, provider, scalusNetwork) =
-            if network == Networks.mainnet() then
-                (
-                  CardanoInfo.mainnet,
-                  BlockfrostProvider.mainnet(blockfrostApiKey),
-                  ScalusNetwork.Mainnet
-                )
-            else if network == Networks.preview() then
-                (
-                  CardanoInfo.preview,
-                  BlockfrostProvider.preview(blockfrostApiKey),
-                  ScalusNetwork.Testnet
-                )
-            else if network == Networks.preprod() then
-                (
-                  CardanoInfo.preprod,
-                  BlockfrostProvider.preprod(blockfrostApiKey),
-                  ScalusNetwork.Testnet
-                )
+        val provider =
+            if network == ScalusNetwork.Mainnet then
+                BlockfrostProvider.mainnet(blockfrostApiKey).await(30.seconds)
+            else if network == ScalusNetwork.Testnet then
+                BlockfrostProvider.preview(blockfrostApiKey).await(30.seconds)
             else sys.error(s"Unsupported network: $network")
 
-        // Create account from mnemonic using standard derivation path
-        val account = Account.createFromMnemonic(network, mnemonic)
-        val bloxbeanAccount = BloxbeanAccount(scalusNetwork, mnemonic, PaymentDerivationPath)
-        val signer = new TransactionSigner(Set(bloxbeanAccount.paymentKeyPair))
+        // Create account from mnemonic using CIP-1852 HD derivation
+        val account = HdAccount.fromMnemonic(mnemonic)
 
         new AppCtx(
-          cardanoInfo,
+          provider.cardanoInfo,
           provider,
           account,
-          signer,
+          account.signerForUtxos,
           tokenName
         )
     }
 
     /** Creates an AppCtx for local development with Yaci DevKit.
       *
-      * This uses a hardcoded test mnemonic and connects to a local Yaci DevKit node.
-      * No API keys required - perfect for development and testing.
+      * This uses a hardcoded test mnemonic and connects to a local Yaci DevKit node. No API keys
+      * required - perfect for development and testing.
       *
       * Prerequisites: Yaci DevKit running locally (see https://devkit.yaci.xyz)
       *
       * @param tokenName
       *   name for the token to mint
       */
-    def yaciDevKit(tokenName: String): AppCtx = {
-        // Custom network ID for local devkit
-        val network = new Network(0, 42)
-
+    def yaciDevKit(tokenName: String)(using Ed25519Signer): AppCtx = {
         // Standard test mnemonic - DO NOT use in production!
         val mnemonic =
             "test test test test test test test test test test test test test test test test test test test test test test test sauce"
-        val account = Account.createFromMnemonic(network, mnemonic)
 
         // Connect to local Yaci DevKit Blockfrost-compatible API
-        val provider = BlockfrostProvider.localYaci
+        val provider = BlockfrostProvider.localYaci().await(30.seconds)
 
-        // Fetch current protocol parameters from the local node
-        val protocolParams = provider.fetchLatestParams.await(10.seconds)
-
-        // Yaci DevKit slot configuration: 1 second slots, starting at epoch 0
-        val yaciSlotConfig = SlotConfig(
-          zeroTime = 0L,
-          zeroSlot = 0L,
-          slotLength = 1000 // milliseconds
-        )
-
-        val cardanoInfo = CardanoInfo(protocolParams, ScalusNetwork.Testnet, yaciSlotConfig)
-
-        val bloxbeanAccount =
-            BloxbeanAccount(ScalusNetwork.Testnet, mnemonic, PaymentDerivationPath)
-        val signer = new TransactionSigner(Set(bloxbeanAccount.paymentKeyPair))
+        // Create account from mnemonic using CIP-1852 HD derivation
+        val account = HdAccount.fromMnemonic(mnemonic)
 
         new AppCtx(
-          cardanoInfo,
+          provider.cardanoInfo,
           provider,
           account,
-          signer,
+          account.signerForUtxos,
           tokenName
         )
     }
@@ -177,8 +137,8 @@ object AppCtx {
 
 /** REST API server for the token minting service.
   *
-  * Built with Tapir for type-safe endpoint definitions and automatic OpenAPI generation.
-  * Swagger UI is available at /docs for interactive API exploration.
+  * Built with Tapir for type-safe endpoint definitions and automatic OpenAPI generation. Swagger UI
+  * is available at /docs for interactive API exploration.
   *
   * @param ctx
   *   application context with blockchain connection and signing capabilities

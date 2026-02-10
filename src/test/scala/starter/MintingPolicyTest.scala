@@ -1,16 +1,19 @@
 package starter
 
-import com.bloxbean.cardano.client.account.Account
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
-import scalus.builtin.ByteString.utf8
-import scalus.builtin.Data.toData
-import scalus.builtin.{ByteString, Data, platform, given}
+import scalus.uplc.builtin.ByteString
+import scalus.uplc.builtin.ByteString.utf8
+import scalus.uplc.builtin.Data
+import scalus.uplc.builtin.Data.toData
+import scalus.uplc.builtin.platform
 import scalus.cardano.ledger.ExUnits
-import scalus.ledger.api.v1.Value.*
-import scalus.ledger.api.v3.*
-import scalus.prelude.*
+import scalus.cardano.onchain.plutus.v1.{PubKeyHash, Value}
+import scalus.cardano.onchain.plutus.v1.Value.*
+import scalus.cardano.onchain.plutus.v3.*
+import scalus.cardano.onchain.plutus.prelude.*
+import scalus.crypto.ed25519.given
 import scalus.testing.kit.ScalusTest
 import scalus.uplc.*
 import scalus.uplc.eval.*
@@ -25,13 +28,13 @@ enum Expected {
 class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with ScalusTest {
     import Expected.*
 
-    private val account = new Account()
+    private val account = scalus.cardano.wallet.hd.HdAccount.fromMnemonic(
+      "test test test test test test test test test test test test test test test test test test test test test test test sauce"
+    )
 
     private val tokenName = utf8"CO2 Tonne"
 
-    private val adminPubKeyHash: PubKeyHash = PubKeyHash(
-      ByteString.fromArray(account.hdKeyPair().getPublicKey.getKeyHash)
-    )
+    private val adminPubKeyHash: PubKeyHash = PubKeyHash(account.paymentKeyHash)
 
     private val config = MintingConfig(adminPubKeyHash, tokenName)
 
@@ -107,13 +110,13 @@ class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with S
         // run the minting policy script as a Plutus script
         assertEval(
           mintingScript.program $ ctx.toData,
-          Success(ExUnits(steps = 19694280, memory = 67472))
+          Success(ExUnits(steps = 19195579, memory = 64448))
         )
     }
 
-    test(s"validator size is 1402 bytes") {
+    test(s"validator size is 1012 bytes") {
         val size = mintingScript.program.cborEncoded.length
-        assert(size == 1402)
+        assert(size == 1012)
     }
 
     private def makeScriptContext(mint: Value, signatories: List[PubKeyHash]) =
