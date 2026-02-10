@@ -1,7 +1,7 @@
 package starter
 
 import scalus.uplc.builtin.Data
-import scalus.cardano.ledger.{AssetName, Transaction, Utxo, Value}
+import scalus.cardano.ledger.{AssetName, Transaction, Value}
 import scalus.cardano.txbuilder.TxBuilder
 import scalus.utils.await
 
@@ -15,10 +15,10 @@ import scala.util.Try
   * using the Scalus TxBuilder API.
   *
   * Key concepts:
-  *   - UTxO selection: Cardano uses unspent transaction outputs as inputs
-  *   - Collateral: Required for script execution to cover potential failures
   *   - Minting: Creating new tokens under a policy ID
   *   - Burning: Destroying tokens (negative mint amount)
+  *
+  * UTxO selection, collateral, and balancing are handled automatically by TxBuilder.complete().
   *
   * @param ctx
   *   application context containing provider, signer, and script configuration
@@ -34,34 +34,21 @@ class Transactions(ctx: AppCtx) {
       */
     def makeMintingTx(amount: Long): Either[String, Transaction] = {
         Try {
-            // Fetch all UTxOs at our address - these are our spendable funds
-            val utxos = ctx.provider
-                .findUtxos(ctx.address)
-                .await(10.seconds)
-                .getOrElse(throw new RuntimeException("Failed to fetch UTXOs"))
-
             val assetName = AssetName(ctx.tokenNameByteString)
             val assets = Map(assetName -> amount)
-            // Value representing the newly minted tokens to send to ourselves
             val mintedValue = Value.asset(ctx.mintingScript.policyId, assetName, amount)
 
-            // Collateral is seized if script execution fails - use first UTxO
-            val (input, output) = utxos.head
-            val firstUtxo = Utxo(input, output)
-
             TxBuilder(ctx.cardanoInfo)
-                .spend(utxos) // Include all UTxOs as inputs (for ADA and consolidation)
-                .collaterals(firstUtxo) // Collateral for script execution guarantee
                 .mint(
-                  script = ctx.mintingScript.scalusScript, // The minting policy script
-                  assets = assets, // Token name -> amount to mint
-                  redeemer = Data.unit, // Redeemer data (unused by our policy)
-                  requiredSigners = Set(ctx.addrKeyHash) // Admin key must sign
+                  script = ctx.mintingScript.scalusScript,
+                  assets = assets,
+                  redeemer = Data.unit,
+                  requiredSigners = Set(ctx.addrKeyHash)
                 )
-                .payTo(ctx.address, mintedValue) // Send minted tokens to ourselves
-                .complete(ctx.provider, ctx.address) // Balance tx, calculate fees
+                .payTo(ctx.address, mintedValue)
+                .complete(ctx.provider, ctx.address)
                 .await(30.seconds)
-                .sign(ctx.signer) // Sign with our key
+                .sign(ctx.signer)
                 .transaction
         }.toEither.left.map(_.getMessage)
     }
@@ -77,28 +64,16 @@ class Transactions(ctx: AppCtx) {
       */
     def makeBurningTx(amount: Long): Either[String, Transaction] = {
         Try {
-            val utxos = ctx.provider
-                .findUtxos(ctx.address)
-                .await(10.seconds)
-                .getOrElse(throw new RuntimeException("Failed to fetch UTXOs"))
-
             val assetName = AssetName(ctx.tokenNameByteString)
-            // Negative amount signals burning to the ledger
             val assets = Map(assetName -> amount)
 
-            val (input, output) = utxos.head
-            val firstUtxo = Utxo(input, output)
-
             TxBuilder(ctx.cardanoInfo)
-                .spend(utxos)
-                .collaterals(firstUtxo)
                 .mint(
                   script = ctx.mintingScript.scalusScript,
                   assets = assets,
                   redeemer = Data.unit,
                   requiredSigners = Set(ctx.addrKeyHash)
                 )
-                // No payTo needed - burned tokens simply disappear
                 .complete(ctx.provider, ctx.address)
                 .await(30.seconds)
                 .sign(ctx.signer)
