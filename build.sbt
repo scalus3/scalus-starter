@@ -19,10 +19,10 @@ lazy val core = (project in file("."))
         "org.scalus" %% "scalus" % scalusVersion,
         "org.scalus" %% "scalus-cardano-ledger" % scalusVersion,
         // Tapir for API definition
-        "com.softwaremill.sttp.tapir" %% "tapir-netty-server-sync" % "1.13.4",
-        "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-bundle" % "1.13.4",
+        "com.softwaremill.sttp.tapir" %% "tapir-netty-server-sync" % "1.13.6",
+        "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-bundle" % "1.13.6",
         // Argument parsing
-        "com.monovore" %% "decline" % "2.5.0",
+        "com.monovore" %% "decline" % "2.6.0",
         "org.slf4j" % "slf4j-simple" % "2.0.17"
       ),
       libraryDependencies ++= Seq(

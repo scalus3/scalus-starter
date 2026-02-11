@@ -8,14 +8,16 @@ import scalus.uplc.builtin.ByteString.utf8
 import scalus.uplc.builtin.Data
 import scalus.uplc.builtin.Data.toData
 import scalus.uplc.builtin.platform
-import scalus.cardano.ledger.ExUnits
+import scalus.cardano.ledger.{AddrKeyHash, AssetName, CardanoInfo, ExUnits}
 import scalus.cardano.onchain.plutus.v1.{PubKeyHash, Value}
 import scalus.cardano.onchain.plutus.v1.Value.*
 import scalus.cardano.onchain.plutus.v3.*
 import scalus.cardano.onchain.plutus.prelude.*
+import scalus.cardano.txbuilder.{RedeemerPurpose, txBuilder}
 import scalus.cardano.wallet.hd.HdAccount
 import scalus.crypto.ed25519.given
 import scalus.testing.kit.ScalusTest
+import scalus.testing.kit.TestUtil.getScriptContextV3
 import scalus.uplc.*
 import scalus.uplc.eval.*
 
@@ -28,6 +30,8 @@ enum Expected {
 
 class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with ScalusTest {
     import Expected.*
+
+    private given env: CardanoInfo = CardanoInfo.mainnet
 
     private val account = HdAccount.fromMnemonic(
       "test test test test test test test test test test test test test test test test test test test test test test test sauce"
@@ -45,8 +49,8 @@ class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with S
     test("should fail when minted token name is not correct") {
         val wrongTokenName = tokenName ++ utf8"extra"
         val ctx = makeScriptContext(
-          mint = Value(mintingScript.script.scriptHash, wrongTokenName, 1000),
-          signatories = List(adminPubKeyHash)
+          mint = Map(AssetName(wrongTokenName) -> 1000L),
+          requiredSigners = Set(account.paymentKeyHash)
         )
 
         val exception = intercept[Exception] {
@@ -59,9 +63,8 @@ class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with S
 
     test("should fail when extra tokens are minted/burned") {
         val ctx = makeScriptContext(
-          mint = Value(mintingScript.script.scriptHash, tokenName, 1000)
-              + Value(mintingScript.script.scriptHash, utf8"Extra", 1000),
-          signatories = List(adminPubKeyHash)
+          mint = Map(AssetName(tokenName) -> 1000L, AssetName(utf8"Extra") -> 1000L),
+          requiredSigners = Set(account.paymentKeyHash)
         )
 
         val exception = intercept[Exception] {
@@ -74,8 +77,8 @@ class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with S
 
     test("should fail when admin signature is not provided") {
         val ctx = makeScriptContext(
-          mint = Value(mintingScript.script.scriptHash, tokenName, 1000),
-          signatories = List.Nil
+          mint = Map(AssetName(tokenName) -> 1000L),
+          requiredSigners = Set.empty
         )
 
         val exception = intercept[Exception] {
@@ -88,8 +91,8 @@ class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with S
 
     test("should fail when admin signature is not correct") {
         val ctx = makeScriptContext(
-          mint = Value(mintingScript.script.scriptHash, tokenName, 1000),
-          signatories = List(PubKeyHash(platform.blake2b_224(ByteString.fromString("wrong"))))
+          mint = Map(AssetName(tokenName) -> 1000L),
+          requiredSigners = Set(AddrKeyHash(platform.blake2b_224(ByteString.fromString("wrong"))))
         )
 
         val exception = intercept[Exception] {
@@ -102,8 +105,8 @@ class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with S
 
     test("should succeed when minted token name is correct and admin signature is correct") {
         val ctx = makeScriptContext(
-          mint = Value(mintingScript.script.scriptHash, tokenName, 1000),
-          signatories = List(adminPubKeyHash)
+          mint = Map(AssetName(tokenName) -> 1000L),
+          requiredSigners = Set(account.paymentKeyHash)
         )
         // run the minting policy script as a Scala function
         // here you can use debugger to debug the minting policy script
@@ -120,18 +123,25 @@ class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with S
         assert(size == 695)
     }
 
-    private def makeScriptContext(mint: Value, signatories: List[PubKeyHash]) =
-        ScriptContext(
-          txInfo = TxInfo(
-            inputs = List.Nil,
-            fee = 188021,
-            mint = mint,
-            signatories = signatories,
-            id = random[TxId]
-          ),
-          redeemer = Data.unit,
-          scriptInfo = ScriptInfo.MintingScript(mintingScript.script.scriptHash)
-        )
+    private def makeScriptContext(
+        mint: Map[AssetName, Long],
+        requiredSigners: Set[AddrKeyHash]
+    ) = {
+        val mintValue = mint.foldLeft(Value.zero) { case (acc, (assetName, qty)) =>
+            acc + Value(mintingScript.script.scriptHash, assetName.bytes, BigInt(qty))
+        }
+        val tx = txBuilder
+            .mint(
+              script = mintingScript.script,
+              assets = mint,
+              redeemer = Data.unit,
+              requiredSigners = requiredSigners
+            )
+            .payTo(account.baseAddress(env.network), mintValue.toLedgerValue)
+            .draft
+        
+        tx.getScriptContextV3(Map.empty, RedeemerPurpose.ForMint(mintingScript.script.scriptHash))
+    }
 
     private def assertEval(p: Program, expected: Expected): Unit = {
         val result = p.evaluateDebug
