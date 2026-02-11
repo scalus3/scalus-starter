@@ -44,7 +44,7 @@ class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with S
     private val config = MintingConfig(adminPubKeyHash, tokenName)
 
     private val mintingScript =
-        MintingPolicyGenerator.makeMintingPolicyScript(adminPubKeyHash, tokenName)
+        MintingPolicyContract.makeMintingPolicyScript(adminPubKeyHash, tokenName)
 
     test("should fail when minted token name is not correct") {
         val wrongTokenName = tokenName ++ utf8"extra"

@@ -5,10 +5,7 @@ import scalus.cardano.onchain.plutus.prelude.List.{Cons, Nil}
 import scalus.cardano.onchain.plutus.prelude.{*, given}
 import scalus.cardano.onchain.plutus.v1.{PolicyId, PubKeyHash, TokenName}
 import scalus.cardano.onchain.plutus.v3.{DataParameterizedValidator, TxInfo}
-import scalus.compiler.Options
-import scalus.uplc.builtin.Data.toData
-import scalus.uplc.builtin.{ByteString, Data, FromData, ToData}
-import scalus.uplc.{PlutusV3, Program}
+import scalus.uplc.builtin.{Data, FromData, ToData}
 
 import scala.language.implicitConversions
 
@@ -22,6 +19,9 @@ case class MintingConfig(
     tokenName: TokenName // The only token name this policy allows
 ) derives FromData,
       ToData
+
+@Compile
+object MintingConfig
 
 /** Minting Policy Validator
   *
@@ -106,36 +106,4 @@ object MintingPolicy extends DataParameterizedValidator {
         mintingPolicy(mintingConfig.adminPubKeyHash, mintingConfig.tokenName, policyId, tx)
     }
 
-}
-
-/** Off-chain code for compiling and instantiating the minting policy.
-  *
-  */
-object MintingPolicyGenerator {
-
-    private given Options = Options.release
-
-    /** Compiled Minting Policy */
-    val compiled: PlutusV3[Data => Data => Unit] =
-        PlutusV3.compile(MintingPolicy.validate)
-
-    /** Optimized UPLC program with error traces for debugging */
-    val program: Program = compiled.withErrorTraces.program
-
-    /** Creates a parameterized minting policy script.
-      *
-      * @param adminPubKeyHash
-      *   public key hash of the admin
-      * @param tokenName
-      *   token name to allow
-      * @return
-      *   a configured minting policy script
-      */
-    def makeMintingPolicyScript(
-        adminPubKeyHash: PubKeyHash,
-        tokenName: TokenName
-    ): PlutusV3[Data => Unit] = {
-        val config = MintingConfig(adminPubKeyHash = adminPubKeyHash, tokenName = tokenName)
-        compiled(config.toData)
-    }
 }

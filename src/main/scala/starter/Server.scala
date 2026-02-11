@@ -62,7 +62,7 @@ case class AppCtx(
 
     /** The configured minting policy script, parameterized with our admin key and token name */
     lazy val mintingScript: PlutusV3[Data => Unit] =
-        MintingPolicyGenerator.makeMintingPolicyScript(pubKeyHash, tokenNameByteString)
+        MintingPolicyContract.makeMintingPolicyScript(pubKeyHash, tokenNameByteString)
 }
 
 /** Factory methods for creating AppCtx for different environments. */

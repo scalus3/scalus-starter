@@ -8,12 +8,12 @@ import scalus.crypto.ed25519.given
 import scala.language.implicitConversions
 
 enum Cmd:
-    case Info, Start
+    case Blueprint, Start
 
 object Cli:
     private val command = {
-        val infoCommand = Opts.subcommand("info", "Prints the contract info") {
-            Opts(Cmd.Info)
+        val blueprintCommand = Opts.subcommand("blueprint", "Prints the contract blueprint JSON") {
+            Opts(Cmd.Blueprint)
         }
 
         val startCommand = Opts.subcommand("start", "Start the server") {
@@ -21,13 +21,12 @@ object Cli:
         }
 
         Command(name = "minter", header = "Scalus Starter Minting Example")(
-          infoCommand orElse startCommand
+          blueprintCommand orElse startCommand
         )
     }
 
-    private def info(): Unit = {
-        // Pretty print the minting policy validator's SIR
-        println(MintingPolicyGenerator.compiled.sir.showHighlighted)
+    private def blueprint(): Unit = {
+        println(MintingPolicyContract.blueprint.toJson())
     }
 
     @main
@@ -57,6 +56,6 @@ object Cli:
             case Left(help) => println(help)
             case Right(cmd) =>
                 cmd match
-                    case Cmd.Info  => info()
+                    case Cmd.Blueprint => blueprint()
                     case Cmd.Start => start()
     }
