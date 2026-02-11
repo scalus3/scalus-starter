@@ -1,15 +1,17 @@
 package starter
 
-import scalus.uplc.builtin.ByteString
+import scalus.uplc.builtin.{ByteString, Data}
 import scalus.cardano.address.{Address, Network as ScalusNetwork}
-import scalus.cardano.ledger.{AddrKeyHash, CardanoInfo}
+import scalus.cardano.ledger.{AddrKeyHash, CardanoInfo, Script}
 import scalus.utils.await
+
 import scala.concurrent.duration.*
-import scalus.cardano.node.{BlockfrostProvider, BlockchainProvider}
+import scalus.cardano.node.{BlockchainProvider, BlockfrostProvider}
 import scalus.cardano.txbuilder.TransactionSigner
 import scalus.cardano.wallet.hd.HdAccount
 import scalus.cardano.onchain.plutus.v1.PubKeyHash
 import scalus.crypto.ed25519.Ed25519Signer
+import scalus.uplc.PlutusV3
 import sttp.client4.DefaultFutureBackend
 import sttp.tapir.*
 import sttp.tapir.server.netty.sync.NettySyncServer
@@ -56,10 +58,10 @@ case class AppCtx(
     lazy val address: Address = account.baseAddress(cardanoInfo.network)
 
     /** Full asset identifier: policy ID + token name (used for lookups) */
-    lazy val unitName: String = (mintingScript.scriptHash ++ tokenNameByteString).toHex
+    lazy val unitName: String = (mintingScript.script.scriptHash ++ tokenNameByteString).toHex
 
     /** The configured minting policy script, parameterized with our admin key and token name */
-    lazy val mintingScript: MintingPolicyScript =
+    lazy val mintingScript: PlutusV3[Data => Unit] =
         MintingPolicyGenerator.makeMintingPolicyScript(pubKeyHash, tokenNameByteString)
 }
 

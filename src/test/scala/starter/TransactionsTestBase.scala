@@ -17,7 +17,7 @@ trait TransactionsTestBase { self: AnyFunSuite =>
                 assert(mint.nonEmpty)
                 val expectedAssetName = AssetName(appCtx.tokenNameByteString)
                 val mintedAmount = mint
-                    .flatMap(_.assets.get(appCtx.mintingScript.policyId))
+                    .flatMap(_.assets.get(appCtx.mintingScript.script.scriptHash))
                     .flatMap(_.get(expectedAssetName))
                 assert(mintedAmount.contains(1000L))
                 // Check that the transaction has witnesses

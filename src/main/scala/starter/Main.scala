@@ -27,7 +27,7 @@ object Cli:
 
     private def info(): Unit = {
         // Pretty print the minting policy validator's SIR
-        println(MintingPolicyGenerator.mintingPolicySIR.showHighlighted)
+        println(MintingPolicyGenerator.compiled.sir.showHighlighted)
     }
 
     @main

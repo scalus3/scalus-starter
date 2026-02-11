@@ -36,11 +36,11 @@ class Transactions(ctx: AppCtx) {
         Try {
             val assetName = AssetName(ctx.tokenNameByteString)
             val assets = Map(assetName -> amount)
-            val mintedValue = Value.asset(ctx.mintingScript.policyId, assetName, amount)
+            val mintedValue = Value.asset(ctx.mintingScript.script.scriptHash, assetName, amount)
 
             TxBuilder(ctx.cardanoInfo)
                 .mint(
-                  script = ctx.mintingScript.scalusScript,
+                  script = ctx.mintingScript.script,
                   assets = assets,
                   redeemer = Data.unit,
                   requiredSigners = Set(ctx.addrKeyHash)
@@ -69,7 +69,7 @@ class Transactions(ctx: AppCtx) {
 
             TxBuilder(ctx.cardanoInfo)
                 .mint(
-                  script = ctx.mintingScript.scalusScript,
+                  script = ctx.mintingScript.script,
                   assets = assets,
                   redeemer = Data.unit,
                   requiredSigners = Set(ctx.addrKeyHash)

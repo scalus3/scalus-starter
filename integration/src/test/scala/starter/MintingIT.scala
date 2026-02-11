@@ -36,7 +36,7 @@ class MintingIT extends AnyFunSuite with YaciDevKitTest {
             _ = waitBlock()
             // verify burn succeeded by checking we can query UTXOs
             utxos <- appCtx.provider
-                .findUtxos(appCtx.address, None, None, None, None)
+                .findUtxos(appCtx.address)
                 .await(10.seconds)
                 .left
                 .map(_.toString)
@@ -46,7 +46,7 @@ class MintingIT extends AnyFunSuite with YaciDevKitTest {
             case Right(utxos) =>
                 // Check that no UTXOs contain the minted token
                 val tokenUtxos = utxos.filter { case (_, utxo) =>
-                    utxo.value.assets.assets.contains(appCtx.mintingScript.policyId)
+                    utxo.value.assets.assets.contains(appCtx.mintingScript.script.scriptHash)
                 }
                 assert(tokenUtxos.isEmpty, s"Expected no token UTXOs but found: $tokenUtxos")
             case Left(err) => fail(err)
