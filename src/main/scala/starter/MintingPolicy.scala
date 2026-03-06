@@ -20,9 +20,6 @@ case class MintingConfig(
 ) derives FromData,
       ToData
 
-@Compile
-object MintingConfig
-
 /** Minting Policy Validator
   *
   * This is the on-chain smart contract that controls token minting and burning. The @Compile

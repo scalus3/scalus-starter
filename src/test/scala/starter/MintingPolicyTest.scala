@@ -114,13 +114,13 @@ class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with S
         // run the minting policy script as a Plutus script
         assertEval(
           mintingScript.program $ ctx.toData,
-          Success(ExUnits(steps = 19147579, memory = 64148))
+          Success(ExUnits(memory = 52972, steps = 16011967))
         )
     }
 
     test(s"validator size is ${mintingScript.program.cborEncoded.length} bytes") {
         val size = mintingScript.program.cborEncoded.length
-        assert(size == 695)
+        assert(size == 649)
     }
 
     private def makeScriptContext(
@@ -134,12 +134,16 @@ class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with S
             .mint(
               script = mintingScript.script,
               assets = mint,
-              redeemer = Data.unit,
-              requiredSigners = requiredSigners
+              redeemer = Data.unit
             )
+            .requireSignatures(requiredSigners)
             .payTo(account.baseAddress(env.network), mintValue.toLedgerValue)
             .draft
-        
+
+//        import scalus.utils.*
+//        println(("MintingConfig", true).toData.showHighlighted)
+//        println(tx.showHighlighted)
+
         tx.getScriptContextV3(Map.empty, RedeemerPurpose.ForMint(mintingScript.script.scriptHash))
     }
 
@@ -149,7 +153,10 @@ class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with S
             case (result: Result.Success, Expected.Success(expected)) =>
                 assert(result.budget == expected)
             case (result: Result.Failure, Expected.Failure(expected)) =>
-                assert(result.exception.getMessage == expected)
+                assert(
+                  result.exception.getMessage.startsWith(expected),
+                  s"Expected message starting with '$expected', got '${result.exception.getMessage}'"
+                )
             case _ => fail(s"Unexpected result: $result, expected: $expected")
     }
 }

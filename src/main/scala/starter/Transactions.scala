@@ -42,9 +42,9 @@ class Transactions(ctx: AppCtx) {
                 .mint(
                   script = ctx.mintingScript.script,
                   assets = assets,
-                  redeemer = Data.unit,
-                  requiredSigners = Set(ctx.addrKeyHash)
+                  redeemer = Data.unit
                 )
+                .requireSignature(ctx.addrKeyHash)
                 .payTo(ctx.address, mintedValue)
                 .complete(ctx.provider, ctx.address)
                 .await(30.seconds)
@@ -71,9 +71,9 @@ class Transactions(ctx: AppCtx) {
                 .mint(
                   script = ctx.mintingScript.script,
                   assets = assets,
-                  redeemer = Data.unit,
-                  requiredSigners = Set(ctx.addrKeyHash)
+                  redeemer = Data.unit
                 )
+                .requireSignature(ctx.addrKeyHash)
                 .complete(ctx.provider, ctx.address)
                 .await(30.seconds)
                 .sign(ctx.signer)

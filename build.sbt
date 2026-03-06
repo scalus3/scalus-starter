@@ -1,4 +1,4 @@
-val scalusVersion = "0.15.1"
+val scalusVersion = "0.16.0"
 val scalusPluginVersion = scalusVersion
 
 resolvers += Resolver.sonatypeCentralSnapshots
@@ -19,8 +19,8 @@ lazy val core = (project in file("."))
         "org.scalus" %% "scalus" % scalusVersion,
         "org.scalus" %% "scalus-cardano-ledger" % scalusVersion,
         // Tapir for API definition
-        "com.softwaremill.sttp.tapir" %% "tapir-netty-server-sync" % "1.13.6",
-        "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-bundle" % "1.13.6",
+        "com.softwaremill.sttp.tapir" %% "tapir-netty-server-sync" % "1.13.10",
+        "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-bundle" % "1.13.10",
         // Argument parsing
         "com.monovore" %% "decline" % "2.6.0",
         "org.slf4j" % "slf4j-simple" % "2.0.17"
