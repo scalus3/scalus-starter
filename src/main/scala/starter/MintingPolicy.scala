@@ -1,6 +1,7 @@
 package starter
 
 import scalus.*
+import scalus.compiler.*
 import scalus.cardano.onchain.plutus.prelude.List.{Cons, Nil}
 import scalus.cardano.onchain.plutus.prelude.{*, given}
 import scalus.cardano.onchain.plutus.v1.{PolicyId, PubKeyHash, TokenName}

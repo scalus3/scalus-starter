@@ -1,4 +1,4 @@
-val scalusVersion = "0.16.0"
+val scalusVersion = "0.17.0"
 val scalusPluginVersion = scalusVersion
 
 resolvers += Resolver.sonatypeCentralSnapshots
@@ -9,7 +9,7 @@ ThisBuild / scalaVersion := "3.3.7"
 ThisBuild / scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked")
 
 // Add the Scalus compiler plugin
-addCompilerPlugin("org.scalus" %% "scalus-plugin" % scalusPluginVersion)
+addCompilerPlugin("org.scalus" % "scalus-plugin_3.3.7" % scalusPluginVersion)
 
 // Main application
 lazy val core = (project in file("."))
