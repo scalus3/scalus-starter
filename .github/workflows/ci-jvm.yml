@@ -1,0 +1,46 @@
+name: CI-JVM
+on:
+  workflow_dispatch:
+  push:
+    paths-ignore:
+      - '.github/workflows/**'
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: coursier/cache-action@v6
+      - uses: nixbuild/nix-quick-install-action@v34
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+        with:
+          use-flakehub: false
+      - name: Build and test in Nix devshell
+        id: build
+        run: |
+          nix develop --accept-flake-config --command bash -c "sbt test" 2>&1 | tee build.log
+          BUILD_EXIT_CODE=${PIPESTATUS[0]}
+          WARNINGS=$(grep -ci "warning:" build.log) || WARNINGS=0
+          echo "warnings=$WARNINGS" >> $GITHUB_OUTPUT
+          exit $BUILD_EXIT_CODE
+      - name: Report test results
+        uses: sarisia/actions-status-discord@v1
+        if: always()
+        env:
+          WARNINGS: ${{ steps.build.outputs.warnings }}
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          title: "[${{ github.event.repository.name }}] CI-JVM ${{ job.status == 'success' && '✅' || '❌' }} - ${{ github.actor }} on ${{ github.ref_name }}"
+          description: "[${{ github.event.head_commit.message }}](${{ github.event.head_commit.url }})${{ steps.build.outputs.warnings > 0 && format('\n⚠️ Warnings: {0}', steps.build.outputs.warnings) || '' }}"
+          url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          username: "GitHub Actions"
+          avatar_url: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+          nodetail: true
+          notimestamp: true
