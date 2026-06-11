@@ -22,6 +22,11 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
         with:
           use-flakehub: false
+      - name: Commit info
+        id: commit
+        run: |
+          echo "message=$(git log -1 --pretty=%s)" >> $GITHUB_OUTPUT
+          echo "url=${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}" >> $GITHUB_OUTPUT
       - name: Build and test in Nix devshell
         id: build
         run: |
@@ -38,7 +43,7 @@ jobs:
         with:
           webhook: ${{ secrets.DISCORD_WEBHOOK }}
           title: "[${{ github.event.repository.name }}] CI-JVM ${{ job.status == 'success' && '✅' || '❌' }} - ${{ github.actor }} on ${{ github.ref_name }}"
-          description: "[${{ github.event.head_commit.message }}](${{ github.event.head_commit.url }})${{ steps.build.outputs.warnings > 0 && format('\n⚠️ Warnings: {0}', steps.build.outputs.warnings) || '' }}"
+          description: "[${{ steps.commit.outputs.message }}](${{ steps.commit.outputs.url }})${{ steps.build.outputs.warnings > 0 && format('\n⚠️ Warnings: {0}', steps.build.outputs.warnings) || '' }}"
           url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           username: "GitHub Actions"
           avatar_url: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
