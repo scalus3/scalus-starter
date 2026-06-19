@@ -135,6 +135,44 @@ object AppCtx {
         )
     }
 
+    /** Creates an AppCtx for the UZH custom Cardano network.
+      *
+      * The UZH network is a Yaci DevKit instance hosted at 130.60.24.200, exposing a
+      * Blockfrost-compatible API on port 8080 and the Yaci admin API (used for slot config) on
+      * port 10000. No API key is required.
+      *
+      * @param tokenName
+      *   name for the token to mint
+      * @param host
+      *   server hosting the UZH Yaci DevKit (default: 130.60.24.200)
+      */
+    def uzhDevNet(tokenName: String, host: String = "130.60.24.200")(using
+        Ed25519Signer
+    ): AppCtx = {
+        // Standard test mnemonic - DO NOT use in production!
+        val mnemonic =
+            "test test test test test test test test test test test test test test test test test test test test test test test sauce"
+
+        // Connect to the remote Yaci DevKit Blockfrost-compatible API
+        val provider = BlockfrostProvider
+            .localYaci(
+              baseUrl = s"http://$host:8080/api/v1",
+              adminUrl = s"http://$host:10000/local-cluster/api"
+            )
+            .await(30.seconds)
+
+        // Create account from mnemonic using CIP-1852 HD derivation
+        val account = HdAccount.fromMnemonic(mnemonic)
+
+        new AppCtx(
+          provider.cardanoInfo,
+          provider,
+          account,
+          account.signerForUtxos,
+          tokenName
+        )
+    }
+
 }
 
 /** REST API server for the token minting service.

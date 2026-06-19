@@ -51,6 +51,17 @@ object Cli:
         Server(appCtx).start()
     }
 
+    @main
+    def uzhDevNet(): Unit = {
+        // Start the server against the UZH custom Cardano network (Yaci DevKit).
+        // Override the host with the UZH_HOST environment variable if needed.
+        val appCtx = System.getenv("UZH_HOST") match
+            case null => AppCtx.uzhDevNet("CO2 Tonne")
+            case host => AppCtx.uzhDevNet("CO2 Tonne", host)
+        println("Starting the server...")
+        Server(appCtx).start()
+    }
+
     @main def main(args: String*): Unit = {
         command.parse(args) match
             case Left(help) => println(help)
