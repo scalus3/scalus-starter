@@ -32,6 +32,8 @@ lazy val core = (project in file("."))
         "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-bundle" % "1.13.22",
         // Argument parsing
         "com.monovore" %% "decline" % "2.6.2",
+        // Logging (scribe is used by Scalus; declared explicitly to configure the format)
+        "com.outr" %% "scribe" % "3.19.0",
         "org.slf4j" % "slf4j-simple" % "2.0.18"
       ),
       libraryDependencies ++= Seq(

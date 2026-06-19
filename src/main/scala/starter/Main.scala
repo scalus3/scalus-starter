@@ -35,6 +35,7 @@ object Cli:
 
     @main
     def start(): Unit = {
+        Logging.configure()
         // Start the server
         val blockfrostApiKey =
             env("BLOCKFROST_API_KEY").getOrElse(sys.error("BLOCKFROST_API_KEY environment variable is not set"))
@@ -47,6 +48,7 @@ object Cli:
 
     @main
     def yaciDevKit(): Unit = {
+        Logging.configure()
         // Start the server
         val appCtx = AppCtx.yaciDevKit("CO2 Tonne")
         println("Starting the server...")
@@ -55,6 +57,7 @@ object Cli:
 
     @main
     def uzhDevNet(): Unit = {
+        Logging.configure()
         // Start the server against the UZH custom Cardano network (Yaci DevKit).
         // Optional env overrides:
         //   UZH_HOST - server host (default: 130.60.24.200)
