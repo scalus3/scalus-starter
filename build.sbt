@@ -19,15 +19,15 @@ lazy val core = (project in file("."))
         "org.scalus" %% "scalus" % scalusVersion,
         "org.scalus" %% "scalus-cardano-ledger" % scalusVersion,
         // Tapir for API definition
-        "com.softwaremill.sttp.tapir" %% "tapir-netty-server-sync" % "1.13.10",
-        "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-bundle" % "1.13.10",
+        "com.softwaremill.sttp.tapir" %% "tapir-netty-server-sync" % "1.13.22",
+        "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-bundle" % "1.13.22",
         // Argument parsing
-        "com.monovore" %% "decline" % "2.6.0",
-        "org.slf4j" % "slf4j-simple" % "2.0.17"
+        "com.monovore" %% "decline" % "2.6.2",
+        "org.slf4j" % "slf4j-simple" % "2.0.18"
       ),
       libraryDependencies ++= Seq(
         "org.scalus" %% "scalus-testkit" % scalusVersion,
-        "org.scalatest" %% "scalatest" % "3.2.19" % Test,
+        "org.scalatest" %% "scalatest" % "3.2.20" % Test,
         "org.scalatestplus" %% "scalacheck-1-18" % "3.2.19.0" % Test,
         "org.scalacheck" %% "scalacheck" % "1.19.0" % Test
       )
@@ -41,7 +41,7 @@ lazy val integration = (project in file("integration"))
       // test dependencies
       libraryDependencies ++= Seq(
         "org.scalus" %% "scalus-testkit" % scalusVersion,
-        "org.scalatest" %% "scalatest" % "3.2.19" % Test,
+        "org.scalatest" %% "scalatest" % "3.2.20" % Test,
         "org.scalatestplus" %% "scalacheck-1-18" % "3.2.19.0" % Test,
         "org.scalacheck" %% "scalacheck" % "1.19.0" % Test,
         // Testcontainers for integration testing
