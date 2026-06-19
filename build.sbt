@@ -8,6 +8,15 @@ ThisBuild / scalaVersion := "3.3.7"
 
 ThisBuild / scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked")
 
+// Scala 3.3.x LTS still uses sun.misc.Unsafe in LazyVals, which JDK 24+ warns about.
+// Fork tests and allow the deprecated memory-access methods to silence the warning.
+// The flag only exists on JDK 23+, so guard it to avoid breaking older JDKs.
+ThisBuild / Test / fork := true
+ThisBuild / Test / javaOptions ++= {
+    val javaVersion = System.getProperty("java.specification.version").toInt
+    if (javaVersion >= 23) Seq("--sun-misc-unsafe-memory-access=allow") else Seq.empty
+}
+
 // Add the Scalus compiler plugin
 addCompilerPlugin("org.scalus" % "scalus-plugin" % scalusPluginVersion cross CrossVersion.full)
 
