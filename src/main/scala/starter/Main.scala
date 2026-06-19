@@ -29,15 +29,17 @@ object Cli:
         println(MintingPolicyContract.blueprint.toJson())
     }
 
+    /** Reads an environment variable, treating unset and blank/whitespace-only values as absent. */
+    private def env(name: String): Option[String] =
+        Option(System.getenv(name)).map(_.trim).filter(_.nonEmpty)
+
     @main
     def start(): Unit = {
         // Start the server
-        val blockfrostApiKey = System.getenv("BLOCKFROST_API_KEY") match
-            case null   => sys.error("BLOCKFROST_API_KEY environment variable is not set")
-            case apiKey => apiKey
-        val mnemonic = System.getenv("MNEMONIC") match
-            case null     => sys.error("MNEMONIC environment variable is not set")
-            case mnemonic => mnemonic
+        val blockfrostApiKey =
+            env("BLOCKFROST_API_KEY").getOrElse(sys.error("BLOCKFROST_API_KEY environment variable is not set"))
+        val mnemonic =
+            env("MNEMONIC").getOrElse(sys.error("MNEMONIC environment variable is not set"))
         val appCtx = AppCtx(Network.Testnet, mnemonic, blockfrostApiKey, "CO2 Tonne")
         println("Starting the server...")
         Server(appCtx).start()
@@ -54,10 +56,13 @@ object Cli:
     @main
     def uzhDevNet(): Unit = {
         // Start the server against the UZH custom Cardano network (Yaci DevKit).
-        // Override the host with the UZH_HOST environment variable if needed.
-        val appCtx = System.getenv("UZH_HOST") match
-            case null => AppCtx.uzhDevNet("CO2 Tonne")
-            case host => AppCtx.uzhDevNet("CO2 Tonne", host)
+        // Optional env overrides:
+        //   UZH_HOST - server host (default: 130.60.24.200)
+        //   MNEMONIC - wallet seed phrase (default: the standard pre-funded test mnemonic)
+        val host = env("UZH_HOST").getOrElse("130.60.24.200")
+        val appCtx = env("MNEMONIC") match
+            case None           => AppCtx.uzhDevNet("CO2 Tonne", host)
+            case Some(mnemonic) => AppCtx.uzhDevNet("CO2 Tonne", host, mnemonic)
         println("Starting the server...")
         Server(appCtx).start()
     }

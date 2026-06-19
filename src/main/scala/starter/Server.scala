@@ -145,14 +145,16 @@ object AppCtx {
       *   name for the token to mint
       * @param host
       *   server hosting the UZH Yaci DevKit (default: 130.60.24.200)
+      * @param mnemonic
+      *   seed phrase for wallet derivation (default: the standard pre-funded test mnemonic - DO NOT
+      *   use the default in production!)
       */
-    def uzhDevNet(tokenName: String, host: String = "130.60.24.200")(using
-        Ed25519Signer
-    ): AppCtx = {
-        // Standard test mnemonic - DO NOT use in production!
-        val mnemonic =
+    def uzhDevNet(
+        tokenName: String,
+        host: String = "130.60.24.200",
+        mnemonic: String =
             "test test test test test test test test test test test test test test test test test test test test test test test sauce"
-
+    )(using Ed25519Signer): AppCtx = {
         // Connect to the remote Yaci DevKit Blockfrost-compatible API
         val provider = BlockfrostProvider
             .localYaci(
