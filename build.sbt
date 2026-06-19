@@ -9,7 +9,7 @@ ThisBuild / scalaVersion := "3.3.7"
 ThisBuild / scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked")
 
 // Add the Scalus compiler plugin
-addCompilerPlugin("org.scalus" % "scalus-plugin_3.3.7" % scalusPluginVersion)
+addCompilerPlugin("org.scalus" % "scalus-plugin" % scalusPluginVersion cross CrossVersion.full)
 
 // Main application
 lazy val core = (project in file("."))
