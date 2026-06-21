@@ -38,7 +38,9 @@ object Cli:
         Logging.configure()
         // Start the server
         val blockfrostApiKey =
-            env("BLOCKFROST_API_KEY").getOrElse(sys.error("BLOCKFROST_API_KEY environment variable is not set"))
+            env("BLOCKFROST_API_KEY").getOrElse(
+              sys.error("BLOCKFROST_API_KEY environment variable is not set")
+            )
         val mnemonic =
             env("MNEMONIC").getOrElse(sys.error("MNEMONIC environment variable is not set"))
         val appCtx = AppCtx(Network.Testnet, mnemonic, blockfrostApiKey, "CO2 Tonne")
@@ -76,5 +78,5 @@ object Cli:
             case Right(cmd) =>
                 cmd match
                     case Cmd.Blueprint => blueprint()
-                    case Cmd.Start => start()
+                    case Cmd.Start     => start()
     }

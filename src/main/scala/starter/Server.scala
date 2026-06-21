@@ -138,8 +138,8 @@ object AppCtx {
     /** Creates an AppCtx for the UZH custom Cardano network.
       *
       * The UZH network is a Yaci DevKit instance hosted at 130.60.24.200, exposing a
-      * Blockfrost-compatible API on port 8080 and the Yaci admin API (used for slot config) on
-      * port 10000. No API key is required.
+      * Blockfrost-compatible API on port 8080 and the Yaci admin API (used for slot config) on port
+      * 10000. No API key is required.
       *
       * @param tokenName
       *   name for the token to mint

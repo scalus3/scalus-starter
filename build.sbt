@@ -1,10 +1,10 @@
-val scalusVersion = "0.18.1"
+val scalusVersion = "0.18.2"
 val scalusPluginVersion = scalusVersion
 
 resolvers += Resolver.sonatypeCentralSnapshots
 
 // Latest Scala 3 LTS version
-ThisBuild / scalaVersion := "3.3.7"
+ThisBuild / scalaVersion := "3.3.8"
 
 ThisBuild / scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked")
 

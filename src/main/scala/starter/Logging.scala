@@ -5,8 +5,8 @@ import scribe.format.*
 /** Logging configuration.
   *
   * Scalus logs via scribe. Its default formatter includes the thread name, e.g.
-  * {{{2026.06.19 10:16:51:892 scala-execution-context-global-113 INFO scalus...submit:595}}}
-  * This reconfigures the root logger with the same layout but without the thread name.
+  * {{{2026.06.19 10:16:51:892 scala-execution-context-global-113 INFO scalus...submit:595}}} This
+  * reconfigures the root logger with the same layout but without the thread name.
   */
 object Logging {
 
