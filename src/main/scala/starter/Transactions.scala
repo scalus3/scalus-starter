@@ -40,13 +40,13 @@ class Transactions(ctx: AppCtx) {
 
             TxBuilder(ctx.cardanoInfo)
                 .mint(
-                  script = ctx.mintingScript.script,
+                  compiled = ctx.mintingScript,
                   assets = assets,
                   redeemer = Data.unit
                 )
                 .requireSignature(ctx.addrKeyHash)
                 .payTo(ctx.address, mintedValue)
-                .complete(ctx.provider, ctx.address)
+                .complete(ctx.provider, sponsor = ctx.address)
                 .await(30.seconds)
                 .sign(ctx.signer)
                 .transaction
@@ -69,12 +69,12 @@ class Transactions(ctx: AppCtx) {
 
             TxBuilder(ctx.cardanoInfo)
                 .mint(
-                  script = ctx.mintingScript.script,
+                  compiled = ctx.mintingScript,
                   assets = assets,
                   redeemer = Data.unit
                 )
                 .requireSignature(ctx.addrKeyHash)
-                .complete(ctx.provider, ctx.address)
+                .complete(ctx.provider, sponsor = ctx.address)
                 .await(30.seconds)
                 .sign(ctx.signer)
                 .transaction
