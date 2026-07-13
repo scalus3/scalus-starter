@@ -20,10 +20,11 @@ A Cardano transaction is a *body* plus a *witness set*. The body says what happe
 set proves it is allowed to happen.
 
 ```mermaid
-flowchart TB
+flowchart LR
     subgraph tx["Cardano transaction"]
         direction LR
         subgraph body["Body — what happens (this is what gets signed)"]
+            direction TB
             inputs["Inputs: references to UTxOs being spent"]
             outputs["Outputs: new UTxOs — address + value (ADA + native tokens)"]
             mintf["Mint field: tokens created (+) or burned (−), grouped by policy ID"]
@@ -31,12 +32,16 @@ flowchart TB
             signers["Required signers (key hashes)"]
             validity["Validity interval (slots)"]
             collateral["Collateral inputs (forfeited if a script fails on-chain)"]
+            inputs ~~~ outputs ~~~ mintf ~~~ fee ~~~ signers ~~~ validity ~~~ collateral
         end
         subgraph wits["Witness set — the proofs"]
+            direction TB
             vkey["Signatures over the body hash"]
             scripts["Plutus scripts (compiled UPLC)"]
             redeemers["Redeemers + execution budgets"]
+            vkey ~~~ scripts ~~~ redeemers
         end
+        body ~~~ wits
     end
 ```
 
@@ -184,9 +189,11 @@ flowchart LR
         utxo1["Admin wallet UTxO<br/>100 ADA"]
     end
     subgraph txm["Transaction body"]
+        direction TB
         mint["mint: +1000 'CO2 Tonne'<br/>under policy ID = script hash"]
         signer["required signer: admin key hash"]
         feex["fee: ~0.2 ADA"]
+        mint ~~~ signer ~~~ feex
     end
     subgraph out["Outputs — UTxOs created"]
         out1["Admin address<br/>1000 CO2 Tonne + ~1.2 ADA"]
