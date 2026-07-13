@@ -48,29 +48,61 @@ the old state and producing the new one.
 
 ### Computing on-chain vs validating on-chain
 
-The state difference has a cost consequence. On Ethereum, the contract must **compute the new
-state on-chain**: every full node re-executes `mint(1000)` — reads storage, runs the logic,
-writes the result — for every transaction, forever. The chain is doing the work, and doing it
-redundantly on thousands of machines.
+The state difference has a cost consequence. Ethereum contracts **compute the new state
+on-chain** — and every node repeats that computation. On Cardano the new state is **computed
+off-chain, once**, by whoever builds the transaction; the chain only **validates** it:
 
-On Cardano, the new state is **computed off-chain, once**, by whoever builds the transaction —
-in our project, the backend's TxBuilder computes the new UTxOs, the change, the fee. The script
-on-chain only **validates** the proposed transition: our minting policy checks a token name and
-a signature; it computes nothing.
+```mermaid
+flowchart LR
+    subgraph eth["Ethereum — every node computes the new state"]
+        direction TB
+        etx["Transaction: call mint(1000)"]
+        e1["Node 1<br/>re-executes the contract"]
+        e2["Node 2<br/>re-executes the contract"]
+        e3["… thousands of nodes<br/>re-execute the contract"]
+        etx --> e1
+        etx --> e2
+        etx --> e3
+    end
+    subgraph ada["Cardano — one machine computes, every node verifies"]
+        direction TB
+        you["Your machine, off-chain:<br/>compute the new state once<br/>(TxBuilder: new UTxOs, change, fee)"]
+        ctx3["Transaction carries the result"]
+        c1["Node 1<br/>verifies the rules"]
+        c2["Node 2<br/>verifies the rules"]
+        c3["… thousands of nodes<br/>verify the rules"]
+        you --> ctx3
+        ctx3 --> c1
+        ctx3 --> c2
+        ctx3 --> c3
+    end
+    eth ~~~ ada
+```
 
-This is fundamentally less expensive, because *checking a result is generally much cheaper than
-producing it* — the same asymmetry that makes NP problems interesting:
+This is fundamentally less expensive, because *checking an answer is generally much cheaper
+than producing it* — the validator never has to find anything; the transaction hands it the
+answer:
 
-- Sorting a list is `O(n log n)`; checking that a list is sorted is `O(n)`.
-- Searching for an entry is `O(n)`; checking the entry you were handed is `O(1)`.
-- A validator never needs to *find* anything: the transaction hands it the answer, and it only
-  verifies the answer follows the rules.
+```mermaid
+flowchart LR
+    subgraph off["Off-chain — produce the answer, once"]
+        p1["sort the list — O(n log n)"]
+        p2["find the entry — O(n)"]
+        p3["build the transaction:<br/>select UTxOs, balance, compute fee"]
+    end
+    subgraph on["On-chain — check the answer, on every node"]
+        v1["verify it is sorted — O(n)"]
+        v2["verify the given entry — O(1)"]
+        v3["verify the rules:<br/>right token name + admin signature"]
+    end
+    p1 --> v1
+    p2 --> v2
+    p3 --> v3
+```
 
-And whatever does run on-chain is replicated by every node, so each instruction saved is saved
-thousands of times. Moving computation off-chain (paid once, by one machine, off the critical
-path) and keeping only verification on-chain (the part that must be replicated) puts the
-expensive work where it is cheap and the cheap work where everything is expensive. That is why
-Plutus execution budgets — and fees — can stay small and predictable.
+Expensive work happens where it is cheap (one machine, off-chain); only the part that must be
+replicated by every node — verification — stays on-chain. That is why Plutus execution budgets
+and fees stay small and predictable.
 
 ### Determinism: when is the outcome decided?
 
