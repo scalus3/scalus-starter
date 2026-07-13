@@ -46,6 +46,32 @@ read. A policy sees one transaction at a time. If a contract needs state, that s
 carried explicitly in a UTxO (a datum) and threaded from transaction to transaction — spending
 the old state and producing the new one.
 
+### Computing on-chain vs validating on-chain
+
+The state difference has a cost consequence. On Ethereum, the contract must **compute the new
+state on-chain**: every full node re-executes `mint(1000)` — reads storage, runs the logic,
+writes the result — for every transaction, forever. The chain is doing the work, and doing it
+redundantly on thousands of machines.
+
+On Cardano, the new state is **computed off-chain, once**, by whoever builds the transaction —
+in our project, the backend's TxBuilder computes the new UTxOs, the change, the fee. The script
+on-chain only **validates** the proposed transition: our minting policy checks a token name and
+a signature; it computes nothing.
+
+This is fundamentally less expensive, because *checking a result is generally much cheaper than
+producing it* — the same asymmetry that makes NP problems interesting:
+
+- Sorting a list is `O(n log n)`; checking that a list is sorted is `O(n)`.
+- Searching for an entry is `O(n)`; checking the entry you were handed is `O(1)`.
+- A validator never needs to *find* anything: the transaction hands it the answer, and it only
+  verifies the answer follows the rules.
+
+And whatever does run on-chain is replicated by every node, so each instruction saved is saved
+thousands of times. Moving computation off-chain (paid once, by one machine, off the critical
+path) and keeping only verification on-chain (the part that must be replicated) puts the
+expensive work where it is cheap and the cheap work where everything is expensive. That is why
+Plutus execution budgets — and fees — can stay small and predictable.
+
 ### Determinism: when is the outcome decided?
 
 On Ethereum, the outcome of your transaction is decided **at execution time, on-chain**. Between
