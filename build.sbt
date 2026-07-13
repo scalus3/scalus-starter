@@ -22,6 +22,7 @@ addCompilerPlugin("org.scalus" % "scalus-plugin" % scalusPluginVersion cross Cro
 
 // Main application
 lazy val core = (project in file("."))
+    .enablePlugins(ScalusSbtPlugin)
     .settings(
       libraryDependencies ++= Seq(
         // Scalus

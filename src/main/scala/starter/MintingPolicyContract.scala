@@ -1,6 +1,6 @@
 package starter
 
-import scalus.cardano.blueprint.{Blueprint, HasTypeDescription, Preamble, Validator}
+import scalus.cardano.blueprint.{Blueprint, Contract, HasTypeDescription, Preamble, Validator}
 import scalus.cardano.onchain.plutus.v1.{PubKeyHash, TokenName}
 import scalus.compiler.Options
 import scalus.uplc.builtin.Data
@@ -9,8 +9,11 @@ import scalus.uplc.{PlutusV3, Program}
 import scalus.utils.Hex.toHex
 
 /** Off-chain code for compiling, instantiating, and generating blueprints for the minting policy.
+  *
+  * Extends [[Contract]] so the Scalus compiler plugin registers it and the `blueprint` sbt task
+  * (from scalus-sbt-plugin) generates `META-INF/scalus/blueprints/MintingPolicyContract.json`.
   */
-object MintingPolicyContract {
+object MintingPolicyContract extends Contract {
 
     private given Options = Options.release
 
