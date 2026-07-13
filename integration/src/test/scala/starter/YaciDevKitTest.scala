@@ -19,8 +19,13 @@ import scalus.testing.yaci.{YaciConfig, YaciDevKit}
   */
 trait YaciDevKitTest extends YaciDevKit { self: Suite =>
 
-    /** Override this to customize the Yaci DevKit configuration */
-    override protected def yaciConfig: YaciConfig = YaciConfig()
+    /** Override this to customize the Yaci DevKit configuration.
+      *
+      * Reuse is enabled so tests attach to a devnet started by [[YaciDevKitMain]] (and keep it
+      * across runs) when `testcontainers.reuse.enable=true` is set in
+      * `~/.testcontainers.properties`; otherwise the container is ephemeral as before.
+      */
+    override protected def yaciConfig: YaciConfig = YaciConfig(reuseContainer = true)
 
     /** Create AppCtx from the running YaciCardanoContainer */
     def createAppCtx(tokenName: String): AppCtx = {
