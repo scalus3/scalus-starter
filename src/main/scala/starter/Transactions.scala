@@ -26,6 +26,21 @@ import scala.util.Try
   */
 class Transactions(ctx: AppCtx) {
 
+    private def earliest(a: java.time.Instant, b: java.time.Instant): java.time.Instant =
+        if a.isBefore(b) then a else b
+
+    /** A validity upper bound ~300 slots past the current chain tip.
+      *
+      * Derived from the chain tip rather than the wall clock: the node can only translate slots
+      * to POSIX time within its foreseeable hard-fork horizon (tip + safe zone), and on devnets
+      * the chain can lag real time, so a wall-clock bound may fail with
+      * TimeTranslationPastHorizon.
+      */
+    private def nearHorizon: java.time.Instant = {
+        val tip = ctx.provider.currentSlot.await(30.seconds)
+        ctx.cardanoInfo.slotConfig.slotToInstant(tip.toLong + 300)
+    }
+
     /** Builds a transaction that mints new tokens.
       *
       * @param amount
@@ -47,6 +62,9 @@ class Transactions(ctx: AppCtx) {
                 )
                 .requireSignature(ctx.addrKeyHash)
                 .payTo(ctx.address, mintedValue)
+                // The policy requires the validity interval to end before the deadline;
+                // without this the interval is unbounded and the script rejects the mint.
+                .validTo(earliest(nearHorizon, ctx.mintDeadline.minusSeconds(1)))
                 .complete(ctx.provider, sponsor = ctx.address)
                 .await(30.seconds)
                 .sign(ctx.signer)

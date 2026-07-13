@@ -39,13 +39,17 @@ given sttp.client4.Backend[scala.concurrent.Future] = DefaultFutureBackend()
   *   transaction signer with private keys
   * @param tokenName
   *   name of the token this instance will mint/burn
+  * @param mintDeadline
+  *   instant after which the policy forbids minting (baked into the script, so changing it changes
+  *   the policy ID)
   */
 case class AppCtx(
     cardanoInfo: CardanoInfo,
     provider: BlockchainProvider,
     account: HdAccount,
     signer: TransactionSigner,
-    tokenName: String
+    tokenName: String,
+    mintDeadline: java.time.Instant = AppCtx.defaultMintDeadline
 ) {
 
     /** Public key hash for use in Plutus scripts (on-chain format) */
@@ -60,13 +64,24 @@ case class AppCtx(
     /** Full asset identifier: policy ID + token name (used for lookups) */
     lazy val unitName: String = (mintingScript.script.scriptHash ++ tokenNameByteString).toHex
 
-    /** The configured minting policy script, parameterized with our admin key and token name */
+    /** The configured minting policy script, parameterized with admin key, token name and mint
+      * deadline
+      */
     lazy val mintingScript: PlutusV3[Data => Unit] =
-        MintingPolicyContract.makeMintingPolicyScript(pubKeyHash, tokenNameByteString)
+        MintingPolicyContract.makeMintingPolicyScript(
+          pubKeyHash,
+          tokenNameByteString,
+          BigInt(mintDeadline.toEpochMilli)
+        )
 }
 
 /** Factory methods for creating AppCtx for different environments. */
 object AppCtx {
+
+    /** Default minting deadline. A fixed constant (not "now + X") keeps the policy ID deterministic
+      * across restarts: same config, same script hash, same token.
+      */
+    val defaultMintDeadline: java.time.Instant = java.time.Instant.parse("2027-01-01T00:00:00Z")
 
     /** Creates an AppCtx for mainnet or public testnets using Blockfrost.
       *

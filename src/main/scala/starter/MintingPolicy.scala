@@ -4,7 +4,7 @@ import scalus.*
 import scalus.compiler.*
 import scalus.cardano.onchain.plutus.prelude.List.{Cons, Nil}
 import scalus.cardano.onchain.plutus.prelude.{*, given}
-import scalus.cardano.onchain.plutus.v1.{PolicyId, PubKeyHash, TokenName}
+import scalus.cardano.onchain.plutus.v1.{PolicyId, PosixTime, PubKeyHash, TokenName}
 import scalus.cardano.onchain.plutus.v3.{DataParameterizedValidator, TxInfo}
 import scalus.uplc.builtin.{Data, FromData, ToData}
 
@@ -17,7 +17,8 @@ import scala.language.implicitConversions
   */
 case class MintingConfig(
     adminPubKeyHash: PubKeyHash, // Only this key can authorize minting/burning
-    tokenName: TokenName // The only token name this policy allows
+    tokenName: TokenName, // The only token name this policy allows
+    mintDeadline: PosixTime // Minting is forbidden after this time (burning stays allowed)
 ) derives FromData,
       ToData
 
@@ -58,6 +59,7 @@ object MintingPolicy extends DataParameterizedValidator {
     def mintingPolicy(
         adminPubKeyHash: PubKeyHash,
         tokenName: TokenName,
+        mintDeadline: PosixTime,
         ownPolicyId: PolicyId,
         tx: TxInfo
     ): Unit = {
@@ -67,9 +69,10 @@ object MintingPolicy extends DataParameterizedValidator {
 
         // Pattern match to ensure exactly one token type with the correct name
         // Note: Scalus uses its own List type for on-chain code, not scala.List
-        mintedTokens.toList match
-            case Cons((tokName, _), Nil) =>
+        val amount = mintedTokens.toList match
+            case Cons((tokName, amount), Nil) =>
                 require(tokName == tokenName, "Token name not found")
+                amount
             case Cons(_, _) =>
                 fail("Multiple tokens found")
             case _ =>
@@ -78,6 +81,16 @@ object MintingPolicy extends DataParameterizedValidator {
 
         // Verify admin authorization - tx.signatories contains all keys that signed
         require(tx.signatories.contains(adminPubKeyHash), "Not signed by admin")
+
+        // Scripts cannot read a clock: the only notion of "now" is the transaction's
+        // validity interval, which the node checks against the current slot BEFORE
+        // running scripts. So if the whole interval lies before the deadline, the
+        // transaction provably executes before the deadline. An unbounded interval
+        // proves nothing and is rejected. Burning (negative amount) has no deadline.
+        require(
+          amount < BigInt(0) || tx.validRange.isEntirelyBefore(mintDeadline),
+          "Minting deadline passed"
+        )
     }
 
     /** Entry point called by the Cardano ledger for minting policy validation.
@@ -101,7 +114,13 @@ object MintingPolicy extends DataParameterizedValidator {
         tx: TxInfo
     ): Unit = {
         val mintingConfig = param.to[MintingConfig]
-        mintingPolicy(mintingConfig.adminPubKeyHash, mintingConfig.tokenName, policyId, tx)
+        mintingPolicy(
+          mintingConfig.adminPubKeyHash,
+          mintingConfig.tokenName,
+          mintingConfig.mintDeadline,
+          policyId,
+          tx
+        )
     }
 
 }

@@ -21,6 +21,7 @@ import scalus.testing.kit.TestUtil.getScriptContextV3
 import scalus.uplc.*
 import scalus.uplc.eval.*
 
+import java.time.Instant
 import scala.language.implicitConversions
 
 enum Expected {
@@ -41,10 +42,19 @@ class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with S
 
     private val adminPubKeyHash: PubKeyHash = PubKeyHash(account.paymentKeyHash)
 
-    private val config = MintingConfig(adminPubKeyHash, tokenName)
+    private val mintDeadline: Instant = Instant.parse("2026-01-01T00:00:00Z")
+    private val beforeDeadline: Instant = Instant.parse("2025-12-01T00:00:00Z")
+    private val afterDeadline: Instant = Instant.parse("2026-06-01T00:00:00Z")
+
+    private val config =
+        MintingConfig(adminPubKeyHash, tokenName, BigInt(mintDeadline.toEpochMilli))
 
     private val mintingScript =
-        MintingPolicyContract.makeMintingPolicyScript(adminPubKeyHash, tokenName)
+        MintingPolicyContract.makeMintingPolicyScript(
+          adminPubKeyHash,
+          tokenName,
+          BigInt(mintDeadline.toEpochMilli)
+        )
 
     test("should fail when minted token name is not correct") {
         val wrongTokenName = tokenName ++ utf8"extra"
@@ -106,7 +116,8 @@ class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with S
     test("should succeed when minted token name is correct and admin signature is correct") {
         val ctx = makeScriptContext(
           mint = Map(AssetName(tokenName) -> 1000L),
-          requiredSigners = Set(account.paymentKeyHash)
+          requiredSigners = Set(account.paymentKeyHash),
+          validTo = scala.Some(beforeDeadline)
         )
         // run the minting policy script as a Scala function
         // here you can use debugger to debug the minting policy script
@@ -114,31 +125,87 @@ class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with S
         // run the minting policy script as a Plutus script
         assertEval(
           mintingScript.program $ ctx.toData,
-          Success(ExUnits(memory = 49388, steps = 15661556))
+          Success(ExUnits(memory = 62833, steps = 20046646))
+        )
+    }
+
+    test("should fail when transaction validity interval is unbounded") {
+        // No validTo: the node would accept this transaction at ANY point in time,
+        // so the script cannot prove it runs before the deadline
+        val ctx = makeScriptContext(
+          mint = Map(AssetName(tokenName) -> 1000L),
+          requiredSigners = Set(account.paymentKeyHash)
+        )
+
+        val exception = intercept[Exception] {
+            MintingPolicy.validate(config.toData)(ctx.toData)
+        }
+        assert(exception.getMessage == "Minting deadline passed")
+
+        assertEval(mintingScript.program $ ctx.toData, Failure("Error evaluated"))
+    }
+
+    test("should fail when minting after the deadline") {
+        val ctx = makeScriptContext(
+          mint = Map(AssetName(tokenName) -> 1000L),
+          requiredSigners = Set(account.paymentKeyHash),
+          validTo = scala.Some(afterDeadline)
+        )
+
+        val exception = intercept[Exception] {
+            MintingPolicy.validate(config.toData)(ctx.toData)
+        }
+        assert(exception.getMessage == "Minting deadline passed")
+
+        assertEval(mintingScript.program $ ctx.toData, Failure("Error evaluated"))
+    }
+
+    test("should succeed when burning after the deadline") {
+        // Burning (negative amount) is exempt from the deadline - holders can
+        // always destroy their tokens, even with an unbounded validity interval
+        val ctx = makeScriptContext(
+          mint = Map(AssetName(tokenName) -> -1000L),
+          requiredSigners = Set(account.paymentKeyHash)
+        )
+
+        MintingPolicy.validate(config.toData)(ctx.toData)
+
+        assertEval(
+          mintingScript.program $ ctx.toData,
+          Success(ExUnits(memory = 54283, steps = 16982058))
         )
     }
 
     test(s"validator size is ${mintingScript.program.cborEncoded.length} bytes") {
         val size = mintingScript.program.cborEncoded.length
-        assert(size == 613)
+        assert(size == 759)
     }
 
     private def makeScriptContext(
         mint: Map[AssetName, Long],
-        requiredSigners: Set[AddrKeyHash]
+        requiredSigners: Set[AddrKeyHash],
+        validTo: scala.Option[Instant] = scala.None
     ) = {
-        val mintValue = mint.foldLeft(Value.zero) { case (acc, (assetName, qty)) =>
+        // Only positive amounts become outputs: burned tokens leave no trace in outputs
+        val minted = mint.filter { case (_, qty) => qty > 0 }
+        val mintValue = minted.foldLeft(Value.zero) { case (acc, (assetName, qty)) =>
             acc + Value(mintingScript.script.scriptHash, assetName.bytes, BigInt(qty))
         }
-        val tx = txBuilder
+        val base = txBuilder
             .mint(
               script = mintingScript.script,
               assets = mint,
               redeemer = Data.unit
             )
             .requireSignatures(requiredSigners)
-            .payTo(account.baseAddress(env.network), mintValue.toLedgerValue)
-            .draft
+        val withOutputs =
+            if minted.nonEmpty then
+                base.payTo(account.baseAddress(env.network), mintValue.toLedgerValue)
+            else base
+        val tx = (validTo match
+            case scala.Some(to) => withOutputs.validTo(to)
+            case scala.None     => withOutputs
+        ).draft
 
 //        import scalus.utils.*
 //        println(("MintingConfig", true).toData.showHighlighted)

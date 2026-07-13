@@ -1,7 +1,7 @@
 package starter
 
 import scalus.cardano.blueprint.{Blueprint, Contract, HasTypeDescription, Preamble, Validator}
-import scalus.cardano.onchain.plutus.v1.{PubKeyHash, TokenName}
+import scalus.cardano.onchain.plutus.v1.{PosixTime, PubKeyHash, TokenName}
 import scalus.compiler.Options
 import scalus.uplc.builtin.Data
 import scalus.uplc.builtin.Data.toData
@@ -58,14 +58,21 @@ object MintingPolicyContract extends Contract {
       *   public key hash of the admin
       * @param tokenName
       *   token name to allow
+      * @param mintDeadline
+      *   POSIX time (milliseconds) after which minting is forbidden
       * @return
       *   a configured minting policy script
       */
     def makeMintingPolicyScript(
         adminPubKeyHash: PubKeyHash,
-        tokenName: TokenName
+        tokenName: TokenName,
+        mintDeadline: PosixTime
     ): PlutusV3[Data => Unit] = {
-        val config = MintingConfig(adminPubKeyHash = adminPubKeyHash, tokenName = tokenName)
+        val config = MintingConfig(
+          adminPubKeyHash = adminPubKeyHash,
+          tokenName = tokenName,
+          mintDeadline = mintDeadline
+        )
         compiled(config.toData)
     }
 }
