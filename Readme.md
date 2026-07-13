@@ -4,6 +4,10 @@
 
 A complete starter kit for building Cardano DApps with [Scalus](https://scalus.org).
 
+> **New to the project?** Read [How This DApp Works](docs/how-it-works.md) — a guided tour with
+> diagrams: transaction anatomy, how the node runs the minting policy, and how the backend builds
+> and submits transactions.
+
 ## Why Scalus?
 
 - **Write contracts in Scala 3** — Use a language you already know, with full IDE support
