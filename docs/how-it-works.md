@@ -343,9 +343,7 @@ a failing rule is a red test with a stack trace, not a cryptic on-chain error.
 
 1. **Max supply.** Extend `MintingPolicy` so total mints cannot exceed a configured cap
    (add a field to `MintingConfig`). Watch the policy ID change when the config changes.
-2. **Burn endpoint.** Add `PUT /burn?amount=N` to `Server.scala` using the existing
-   `makeBurningTx`.
-3. **Blueprint.** Run `sbt "run blueprint"` and inspect the CIP-57 JSON — find the compiled
+2. **Blueprint.** Run `sbt blueprint` and inspect the CIP-57 JSON — find the compiled
    UPLC and the script hash you learned about above.
-4. **Break a rule.** Change the token name in a test to something not in the config and watch
+3. **Break a rule.** Change the token name in a test to something not in the config and watch
    both the emulator test and (if you submit it) the node reject it.

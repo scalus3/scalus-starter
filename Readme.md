@@ -176,9 +176,8 @@ sbt "run start"  # Uses preprod testnet by default
 
 1. **Read the code** — Start with `MintingPolicy.scala`, it's well-commented
 2. **Modify the validator** — Try adding a maximum mint amount check
-3. **Add a burn endpoint** — Extend `Server.scala` with a `/burn` endpoint
-4. **Generate a blueprint** — Run `sbt "run blueprint"` and inspect the CIP-57 JSON
-5. **Deploy to testnet** — Get a Blockfrost API key and test on preprod
+3. **Generate a blueprint** — Run `sbt blueprint` and inspect the CIP-57 JSON
+4. **Deploy to testnet** — Get a Blockfrost API key and test on preprod
 
 ## Building Your Own DApp
 
