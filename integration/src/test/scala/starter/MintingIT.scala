@@ -9,8 +9,8 @@ import scala.concurrent.duration.*
 
 /** Integration test for minting and burning tokens using Yaci DevKit testcontainer.
   *
-  * The container starts automatically before tests and stops after.
-  * No manual Yaci DevKit setup required.
+  * The container starts automatically before tests and stops after. No manual Yaci DevKit setup
+  * required.
   */
 class MintingIT extends AnyFunSuite with YaciDevKitTest {
 
@@ -19,11 +19,30 @@ class MintingIT extends AnyFunSuite with YaciDevKitTest {
 
     private def waitBlock(): Unit = Thread.sleep(3000)
 
+    /** Total quantity of tokens under the minting policy held at the app address.
+      *
+      * The devnet may be reused across runs (see [[TestcontainersReuse]]), so the ledger can hold
+      * leftover tokens from earlier interrupted runs - assertions compare balances, not absolutes.
+      */
+    private def tokenBalance(appCtx: AppCtx): Either[String, Long] =
+        appCtx.provider
+            .findUtxos(appCtx.address)
+            .await(10.seconds)
+            .left
+            .map(_.toString)
+            .map { utxos =>
+                val policyId = appCtx.mintingScript.script.scriptHash
+                utxos.values
+                    .map(_.value.assets.assets.get(policyId).map(_.values.sum).getOrElse(0L))
+                    .sum
+            }
+
     test("mint and burn tokens") {
         val appCtx = createAppCtx("CO2 Tonne")
         val txBuilder = Transactions(appCtx)
 
         val result = for
+            initialBalance <- tokenBalance(appCtx)
             // mint 1000 tokens
             tx <- txBuilder.makeMintingTx(1000)
             _ = println(s"minting tx: ${tx.id.toHex}")
@@ -34,21 +53,15 @@ class MintingIT extends AnyFunSuite with YaciDevKitTest {
             _ = println(s"burning tx: ${burnedTx.id.toHex}")
             _ <- submitTx(appCtx, burnedTx)
             _ = waitBlock()
-            // verify burn succeeded by checking we can query UTXOs
-            utxos <- appCtx.provider
-                .findUtxos(appCtx.address)
-                .await(10.seconds)
-                .left
-                .map(_.toString)
-        yield utxos
+            finalBalance <- tokenBalance(appCtx)
+        yield (initialBalance, finalBalance)
 
         result match
-            case Right(utxos) =>
-                // Check that no UTXOs contain the minted token
-                val tokenUtxos = utxos.filter { case (_, utxo) =>
-                    utxo.value.assets.assets.contains(appCtx.mintingScript.script.scriptHash)
-                }
-                assert(tokenUtxos.isEmpty, s"Expected no token UTXOs but found: $tokenUtxos")
+            case Right((initialBalance, finalBalance)) =>
+                assert(
+                  finalBalance == initialBalance,
+                  s"Expected token balance to return to $initialBalance but was $finalBalance"
+                )
             case Left(err) => fail(err)
     }
 }

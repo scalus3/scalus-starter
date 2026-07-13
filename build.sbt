@@ -49,6 +49,8 @@ lazy val integration = (project in file("integration"))
     .dependsOn(core % "compile->compile;test->test")
     .settings(
       publish / skip := true,
+      // let YaciDevKitMain read stdin from the forked JVM ("Press Enter to exit")
+      Test / connectInput := true,
       // test dependencies
       libraryDependencies ++= Seq(
         "org.scalus" %% "scalus-testkit" % scalusVersion,

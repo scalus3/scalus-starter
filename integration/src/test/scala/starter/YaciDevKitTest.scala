@@ -21,18 +21,18 @@ trait YaciDevKitTest extends YaciDevKit { self: Suite =>
 
     /** Override this to customize the Yaci DevKit configuration.
       *
-      * Reuse is enabled so tests attach to a devnet started by [[YaciDevKitMain]] (and keep it
-      * across runs) when `testcontainers.reuse.enable=true` is set in
-      * `~/.testcontainers.properties`; otherwise the container is ephemeral as before.
+      * Container reuse is enabled only when Testcontainers reuse is enabled globally (see
+      * [[TestcontainersReuse]]). Tests then attach to a devnet started by [[YaciDevKitMain]] and
+      * keep it across runs. Otherwise the container is anonymous and ephemeral, so concurrent or
+      * leftover containers cannot cause Docker name conflicts.
       */
-    override protected def yaciConfig: YaciConfig = YaciConfig(reuseContainer = true)
+    override protected def yaciConfig: YaciConfig =
+        YaciConfig(reuseContainer = TestcontainersReuse.enabled)
 
     /** Create AppCtx from the running YaciCardanoContainer */
     def createAppCtx(tokenName: String): AppCtx = {
         val context = createTestContext()
-        val mnemonic =
-            "test test test test test test test test test test test test test test test test test test test test test test test sauce"
-        val account = HdAccount.fromMnemonic(mnemonic)
+        val account = HdAccount.fromMnemonic(YaciDevKitTest.testMnemonic)
         new AppCtx(
           context.cardanoInfo,
           context.provider,
@@ -41,4 +41,12 @@ trait YaciDevKitTest extends YaciDevKit { self: Suite =>
           tokenName
         )
     }
+}
+
+object YaciDevKitTest {
+
+    /** Default funded wallet mnemonic in Yaci DevKit */
+    val testMnemonic: String =
+        "test test test test test test test test test test test test " +
+            "test test test test test test test test test test test sauce"
 }

@@ -2,7 +2,6 @@ package starter
 
 import scalus.testing.yaci.{YaciConfig, YaciContainer}
 
-import java.nio.file.{Files, Paths}
 import scala.io.StdIn
 
 /** Starts a Yaci DevKit devnet for manual interaction.
@@ -12,50 +11,42 @@ import scala.io.StdIn
   * sbtn "integration/Test/runMain starter.YaciDevKitMain"
   * }}}
   *
-  * The container is started with reuse enabled (name: `scalus-yaci-devkit`), so it keeps running
-  * after this process exits and integration tests attach to it instantly. Stop it with:
-  * {{{
-  * docker rm -f scalus-yaci-devkit
-  * }}}
-  *
-  * Requires `testcontainers.reuse.enable=true` in `~/.testcontainers.properties`, otherwise the
-  * container is reaped by Ryuk when this process exits.
+  * When Testcontainers reuse is enabled (see [[TestcontainersReuse]]), the container is named and
+  * kept running after this process exits, and integration tests attach to it instantly. Stop it
+  * with `docker rm -f <container name>` (printed on startup). Without reuse the container is
+  * anonymous and is removed when this process exits.
   */
 object YaciDevKitMain {
 
-    private val testMnemonic =
-        "test test test test test test test test test test test test " +
-            "test test test test test test test test test test test sauce"
-
     def main(args: Array[String]): Unit = {
-        checkReuseEnabled()
+        val reuseEnabled = TestcontainersReuse.enabled
+        if !reuseEnabled then
+            println(
+              """WARNING: Testcontainers reuse is not enabled - the container will be
+                |removed when this process exits. To keep the devnet running, add
+                |  testcontainers.reuse.enable=true
+                |to ~/.testcontainers.properties (or set TESTCONTAINERS_REUSE_ENABLE=true)
+                |and restart.""".stripMargin
+            )
+        val config = YaciConfig(reuseContainer = reuseEnabled)
         println("Starting Yaci DevKit container (first start can take a minute)...")
-        val container = YaciContainer.acquire(YaciConfig(reuseContainer = true))
+        val container = YaciContainer.acquire(config)
         println()
-        println(s"Yaci DevKit is running (container: scalus-yaci-devkit)")
+        val name =
+            if reuseEnabled then config.containerName
+            else container.getContainerName.stripPrefix("/")
+        println(s"Yaci DevKit is running (container: $name)")
         println(s"  Yaci Store API (Blockfrost-compatible): ${container.getYaciStoreApiUrl}")
         println(s"  Local cluster admin API:                ${container.getLocalClusterApiUrl}")
         println()
-        println(s"Funded test wallet mnemonic (used by integration tests):")
-        println(s"  $testMnemonic")
+        println("Funded test wallet mnemonic (used by integration tests):")
+        println(s"  ${YaciDevKitTest.testMnemonic}")
         println()
-        println("The container keeps running after exit. Stop it with: docker rm -f scalus-yaci-devkit")
+        if reuseEnabled then
+            println("The container keeps running after exit.")
+            println(s"Stop it with: docker rm -f ${config.containerName}")
+        else println("The container is removed when this process exits.")
         println("Press Enter to exit...")
         StdIn.readLine()
-    }
-
-    private def checkReuseEnabled(): Unit = {
-        val props = Paths.get(sys.props("user.home"), ".testcontainers.properties")
-        val reuseEnabled = Files.exists(props) && Files
-            .readString(props)
-            .linesIterator
-            .exists(_.replace(" ", "") == "testcontainers.reuse.enable=true")
-        if !reuseEnabled then
-            println(
-              """WARNING: testcontainers reuse is not enabled - the container will be
-                |removed when this process exits. To keep the devnet running, add
-                |  testcontainers.reuse.enable=true
-                |to ~/.testcontainers.properties and restart.""".stripMargin
-            )
     }
 }
