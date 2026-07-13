@@ -12,6 +12,81 @@ contract) decides who may mint or burn a token called "CO2 Tonne". A REST backen
 `PUT /mint?amount=N`, builds the corresponding transaction, signs it, and submits it to a Cardano
 node. On-chain and off-chain code live in one Scala codebase.
 
+## How Cardano differs from Ethereum
+
+### State: accounts vs eUTxO
+
+Ethereum uses an **account model**: a smart contract is an object with mutable storage living in
+one global state. A transaction is a *call* — contract code runs on-chain and reads and writes
+that shared state, whatever it happens to be at execution time.
+
+Cardano uses the **extended UTxO model**: there is no global mutable state. All state lives in
+UTxOs — discrete, immutable snippets of value and data. A transaction does not "call" anything;
+it *declares* the entire state change up front: which UTxOs it consumes, which it creates, what
+it mints. Scripts don't perform the change — they only look at the declared transaction and
+approve or reject it.
+
+```mermaid
+flowchart LR
+    subgraph eth["Ethereum — account model"]
+        direction TB
+        etx["Transaction: call mint(1000)"] --> code["Contract code executes on-chain"]
+        code -->|"reads and writes"| gstate[("Global mutable storage<br/>totalSupply, balances, owner, ...")]
+    end
+    subgraph ada["Cardano — eUTxO model"]
+        direction TB
+        ctx2["Transaction declares everything:<br/>spend UTxOs A, B — create C, D — mint 1000"] --> val["Validator script inspects the declared transaction"]
+        val -->|"approve or reject, nothing else"| ledger[("UTxO set<br/>state = value + data carried by UTxOs")]
+    end
+    eth ~~~ ada
+```
+
+This is why our minting policy cannot check a *total* supply: there is no global counter to
+read. A policy sees one transaction at a time. If a contract needs state, that state must be
+carried explicitly in a UTxO (a datum) and threaded from transaction to transaction — spending
+the old state and producing the new one.
+
+### Determinism: when is the outcome decided?
+
+On Ethereum, the outcome of your transaction is decided **at execution time, on-chain**. Between
+signing and execution, other transactions run first and move the state under you — the price
+changed, the cap was hit, the auction closed. Your call can revert, and you pay gas either way.
+
+```mermaid
+sequenceDiagram
+    participant U as You (off-chain)
+    participant E as Ethereum node
+    U->>E: submit "call mint(1000)" with a gas limit
+    Note over E: other transactions execute first —<br/>the state changes under you
+    E->>E: run contract code against whatever state is current
+    E-->>U: success or revert — gas is paid either way
+```
+
+On Cardano, the outcome is decided **when you build the transaction, off-chain**. The
+transaction names its exact inputs and outputs; scripts see only the transaction itself, so
+running them locally gives the same result the node will get — same inputs, same code, same
+answer. The node merely re-checks your work:
+
+```mermaid
+sequenceDiagram
+    participant U as You (off-chain)
+    participant C as Cardano node
+    U->>U: build tx: exact inputs, outputs, mint — fee known in advance
+    U->>U: run the scripts locally — validation result is already known
+    U->>C: submit the signed transaction
+    C->>C: re-run the same deterministic validation
+    C-->>U: applied exactly as built — or rejected whole<br/>(e.g. an input was already spent), costing nothing
+```
+
+Practical consequences:
+
+- **Fees are known before you submit** — no gas estimation, no surprise costs.
+- **No partial effects** — a transaction either applies exactly as you built it or not at all;
+  if someone spends one of your inputs first, the transaction is rejected in phase-1 for free.
+- **The trade-off is contention** — two transactions spending the same UTxO cannot both
+  succeed, so highly shared state (like an on-chain counter) must be designed around, whereas
+  Ethereum serializes such access implicitly.
+
 ## Cardano transactions and Plutus scripts in two minutes
 
 ### What a transaction looks like
