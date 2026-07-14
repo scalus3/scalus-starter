@@ -3,6 +3,7 @@ package starter
 import scalus.uplc.builtin.Data
 import scalus.cardano.ledger.{AssetName, Transaction, Value}
 import scalus.cardano.txbuilder.TxBuilder
+import scalus.utils.*
 import scalus.utils.await
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -99,6 +100,8 @@ class Transactions(ctx: AppCtx) {
                 if amount > 0 then makeMintingTx(amount)
                 else if amount < 0 then makeBurningTx(amount)
                 else Left("amount must be non-zero")
+            // Show the full transaction structure - inputs, outputs, mint field, witnesses
+            _ = println(tx.showDetailed)
             result <- ctx.provider.submit(tx).await(30.seconds).left.map(_.toString)
         yield result.toHex
     }
