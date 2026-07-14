@@ -188,6 +188,7 @@ object AppCtx {
 class Server(ctx: AppCtx):
     // Define the mint endpoint using Tapir's type-safe DSL
     // PUT /mint?amount=100 -> returns transaction hash or error
+    // A negative amount burns tokens instead (PUT /mint?amount=-100)
     private val mint = endpoint.put
         .in("mint")
         .in(query[Long]("amount"))

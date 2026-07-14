@@ -170,7 +170,7 @@ sbt "run start"  # Uses preprod testnet by default
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| PUT | `/mint?amount=100` | Mint tokens |
+| PUT | `/mint?amount=100` | Mint tokens (negative amount burns them) |
 
 ## Next Steps
 

@@ -81,16 +81,24 @@ class Transactions(ctx: AppCtx) {
         }.toEither.left.map(_.getMessage)
     }
 
-    /** Builds, signs, and submits a minting transaction to the network.
+    /** Builds, signs, and submits a minting or burning transaction to the network.
+      *
+      * A positive amount mints tokens; a negative amount burns them. The two need different
+      * transaction shapes: minting pays the created tokens to an output, while burning must not add
+      * them to any output - a negative quantity in an output is not even encodable in the
+      * transaction wire format.
       *
       * @param amount
-      *   number of tokens to mint
+      *   number of tokens to mint (positive) or burn (negative)
       * @return
       *   either an error message or the transaction hash (hex)
       */
     def submitMintingTx(amount: Long): Either[String, String] = {
         for
-            tx <- makeMintingTx(amount)
+            tx <-
+                if amount > 0 then makeMintingTx(amount)
+                else if amount < 0 then makeBurningTx(amount)
+                else Left("amount must be non-zero")
             result <- ctx.provider.submit(tx).await(30.seconds).left.map(_.toString)
         yield result.toHex
     }
