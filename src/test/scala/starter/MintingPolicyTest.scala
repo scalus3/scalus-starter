@@ -21,6 +21,7 @@ import scalus.testing.kit.TestUtil.getScriptContextV3
 import scalus.uplc.*
 import scalus.uplc.eval.*
 
+import java.time.Instant
 import scala.language.implicitConversions
 
 enum Expected {
@@ -45,6 +46,11 @@ class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with S
 
     private val mintingScript =
         MintingPolicyContract.makeMintingPolicyScript(adminPubKeyHash, tokenName)
+
+    /** Exactly at the deadline — the latest upper bound the policy accepts */
+    private val atDeadline = Instant.ofEpochMilli(MintingPolicy.mintDeadline.toLong)
+
+    private val afterDeadline = atDeadline.plusSeconds(3600)
 
     test("should fail when minted token name is not correct") {
         val wrongTokenName = tokenName ++ utf8"extra"
@@ -78,7 +84,8 @@ class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with S
     test("should fail when admin signature is not provided") {
         val ctx = makeScriptContext(
           mint = Map(AssetName(tokenName) -> 1000L),
-          requiredSigners = Set.empty
+          requiredSigners = Set.empty,
+          validTo = scala.Some(atDeadline)
         )
 
         val exception = intercept[Exception] {
@@ -92,7 +99,8 @@ class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with S
     test("should fail when admin signature is not correct") {
         val ctx = makeScriptContext(
           mint = Map(AssetName(tokenName) -> 1000L),
-          requiredSigners = Set(AddrKeyHash(platform.blake2b_224(ByteString.fromString("wrong"))))
+          requiredSigners = Set(AddrKeyHash(platform.blake2b_224(ByteString.fromString("wrong")))),
+          validTo = scala.Some(atDeadline)
         )
 
         val exception = intercept[Exception] {
@@ -103,10 +111,50 @@ class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with S
         assertEval(mintingScript.program $ ctx.toData, Failure("Error evaluated"))
     }
 
-    test("should succeed when minted token name is correct and admin signature is correct") {
+    test("should fail when minting after the deadline") {
+        val ctx = makeScriptContext(
+          mint = Map(AssetName(tokenName) -> 1000L),
+          requiredSigners = Set(account.paymentKeyHash),
+          validTo = scala.Some(afterDeadline)
+        )
+
+        val exception = intercept[Exception] {
+            MintingPolicy.validate(config.toData)(ctx.toData)
+        }
+        assert(exception.getMessage == "Minting deadline passed")
+
+        assertEval(mintingScript.program $ ctx.toData, Failure("Error evaluated"))
+    }
+
+    test("should fail when minting without an upper validity bound") {
         val ctx = makeScriptContext(
           mint = Map(AssetName(tokenName) -> 1000L),
           requiredSigners = Set(account.paymentKeyHash)
+        )
+
+        val exception = intercept[Exception] {
+            MintingPolicy.validate(config.toData)(ctx.toData)
+        }
+        assert(exception.getMessage == "Must have finite upper bound")
+
+        assertEval(mintingScript.program $ ctx.toData, Failure("Error evaluated"))
+    }
+
+    test("should succeed when burning after the deadline") {
+        val ctx = makeScriptContext(
+          mint = Map(AssetName(tokenName) -> -1000L),
+          requiredSigners = Set(account.paymentKeyHash),
+          validTo = scala.Some(afterDeadline)
+        )
+
+        MintingPolicy.validate(config.toData)(ctx.toData)
+    }
+
+    test("should succeed when minted token name is correct and admin signature is correct") {
+        val ctx = makeScriptContext(
+          mint = Map(AssetName(tokenName) -> 1000L),
+          requiredSigners = Set(account.paymentKeyHash),
+          validTo = scala.Some(atDeadline)
         )
         // run the minting policy script as a Scala function
         // here you can use debugger to debug the minting policy script
@@ -114,31 +162,37 @@ class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with S
         // run the minting policy script as a Plutus script
         assertEval(
           mintingScript.program $ ctx.toData,
-          Success(ExUnits(memory = 49388, steps = 15661556))
+          Success(ExUnits(memory = 57606, steps = 18525362))
         )
     }
 
     test(s"validator size is ${mintingScript.program.cborEncoded.length} bytes") {
         val size = mintingScript.program.cborEncoded.length
-        assert(size == 613)
+        assert(size == 696)
     }
 
     private def makeScriptContext(
         mint: Map[AssetName, Long],
-        requiredSigners: Set[AddrKeyHash]
+        requiredSigners: Set[AddrKeyHash],
+        validTo: scala.Option[Instant] = scala.None
     ) = {
-        val mintValue = mint.foldLeft(Value.zero) { case (acc, (assetName, qty)) =>
+        // Burned tokens (negative amounts) must not appear in outputs
+        val positiveMint = mint.filter((_, qty) => qty > 0)
+        val mintValue = positiveMint.foldLeft(Value.zero) { case (acc, (assetName, qty)) =>
             acc + Value(mintingScript.script.scriptHash, assetName.bytes, BigInt(qty))
         }
-        val tx = txBuilder
+        val builder = txBuilder
             .mint(
               script = mintingScript.script,
               assets = mint,
               redeemer = Data.unit
             )
             .requireSignatures(requiredSigners)
-            .payTo(account.baseAddress(env.network), mintValue.toLedgerValue)
-            .draft
+        val withOutputs =
+            if positiveMint.nonEmpty then
+                builder.payTo(account.baseAddress(env.network), mintValue.toLedgerValue)
+            else builder
+        val tx = validTo.fold(withOutputs)(withOutputs.validTo).draft
 
 //        import scalus.utils.*
 //        println(("MintingConfig", true).toData.showHighlighted)

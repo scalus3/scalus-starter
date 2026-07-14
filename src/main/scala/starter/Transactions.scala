@@ -6,6 +6,7 @@ import scalus.cardano.txbuilder.TxBuilder
 import scalus.utils.*
 import scalus.utils.await
 
+import java.time.Instant
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.*
 import scala.util.Try
@@ -45,6 +46,8 @@ class Transactions(ctx: AppCtx) {
                   assets = assets,
                   redeemer = Data.unit
                 )
+                // the policy requires a finite upper validity bound at or before the deadline
+                .validTo(Instant.ofEpochMilli(MintingPolicy.mintDeadline.toLong))
                 .requireSignature(ctx.addrKeyHash)
                 .payTo(ctx.address, mintedValue)
                 .complete(ctx.provider, sponsor = ctx.address)
