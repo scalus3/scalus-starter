@@ -27,6 +27,17 @@ import scala.util.Try
   */
 class Transactions(ctx: AppCtx) {
 
+    /** Upper validity bound for minting transactions: 3 minutes from now, capped at the minting
+      * deadline. The window must stay well inside the node's forecast horizon - a devnet with
+      * 1-second slots, 600-slot epochs and a 900-slot safe zone can translate slots only ~5 minutes
+      * ahead right before an epoch boundary (TimeTranslationPastHorizon otherwise).
+      */
+    private def mintingValidTo: Instant = {
+        val deadline = Instant.ofEpochMilli(MintingPolicy.mintDeadline.toLong)
+        val soon = Instant.now().plusSeconds(3 * 60)
+        if soon.isBefore(deadline) then soon else deadline
+    }
+
     /** Builds a transaction that mints new tokens.
       *
       * @param amount
@@ -46,8 +57,11 @@ class Transactions(ctx: AppCtx) {
                   assets = assets,
                   redeemer = Data.unit
                 )
-                // the policy requires a finite upper validity bound at or before the deadline
-                .validTo(Instant.ofEpochMilli(MintingPolicy.mintDeadline.toLong))
+                // the policy requires a finite upper validity bound at or before the deadline;
+                // keep the bound close to now - nodes reject slots beyond their forecast
+                // horizon (TimeTranslationPastHorizon), so the deadline itself only works
+                // when it is near
+                .validTo(mintingValidTo)
                 .requireSignature(ctx.addrKeyHash)
                 .payTo(ctx.address, mintedValue)
                 .complete(ctx.provider, sponsor = ctx.address)

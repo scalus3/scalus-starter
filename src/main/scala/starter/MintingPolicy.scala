@@ -4,7 +4,13 @@ import scalus.*
 import scalus.compiler.*
 import scalus.cardano.onchain.plutus.prelude.List.{Cons, Nil}
 import scalus.cardano.onchain.plutus.prelude.{*, given}
-import scalus.cardano.onchain.plutus.v1.{IntervalBoundType, PolicyId, PosixTime, PubKeyHash, TokenName}
+import scalus.cardano.onchain.plutus.v1.{
+    IntervalBoundType,
+    PolicyId,
+    PosixTime,
+    PubKeyHash,
+    TokenName
+}
 import scalus.cardano.onchain.plutus.v3.{DataParameterizedValidator, TxInfo}
 import scalus.uplc.builtin.{Data, FromData, ToData}
 
@@ -35,13 +41,13 @@ case class MintingConfig(
 @Compile
 object MintingPolicy extends DataParameterizedValidator {
 
-    /** No tokens can be minted after this moment: 2026-07-14 12:30:00 CEST. Burning stays allowed.
+    /** No tokens can be minted after this moment: 2030-01-01 00:00:00 UTC. Burning stays allowed.
       *
       * Plutus scripts cannot read a clock, so the check relies on the transaction validity
       * interval: the ledger only accepts a transaction within that interval, so a finite upper
       * bound at or before the deadline proves the script runs before the deadline.
       */
-    val mintDeadline: PosixTime = BigInt("1784025000000")
+    val mintDeadline: PosixTime = BigInt("1893456000000")
 
     /** Core validation logic for minting/burning tokens.
       *
