@@ -78,7 +78,7 @@ object MintingPolicy extends DataParameterizedValidator {
     ): Unit = {
         // tx.mint contains all tokens being minted/burned in this transaction
         // We look up our own policy ID to find tokens we're responsible for validating
-        val mintedTokens = tx.mint.toSortedMap.getOrFail(ownPolicyId, "Tokens not found")
+        val mintedTokens = tx.mint.tokens(ownPolicyId)
 
         // Pattern match to ensure exactly one token type with the correct name
         // Note: Scalus uses its own List type for on-chain code, not scala.List
@@ -88,19 +88,13 @@ object MintingPolicy extends DataParameterizedValidator {
                 // Minting (positive amount) is only allowed before the deadline.
                 // Burning (negative amount) is allowed at any time.
                 if amount > BigInt(0) then
-                    tx.validRange.to.boundType match
-                        case IntervalBoundType.Finite(to) =>
-                            require(to <= mintDeadline, "Minting deadline passed")
-                        case _ =>
-                            fail("Must have finite upper bound")
-            case Cons(_, _) =>
-                fail("Multiple tokens found")
+                    val to = tx.validRange.to.finiteOrFail("Must have finite upper bound")
+                    require(to <= mintDeadline, "Minting deadline passed")
             case _ =>
-                // Cardano ledger rules guarantee that minting always has tokens
-                impossible()
+                fail("Multiple tokens found")
 
         // Verify admin authorization - tx.signatories contains all keys that signed
-        require(tx.signatories.contains(adminPubKeyHash), "Not signed by admin")
+        require(tx.isSignedBy(adminPubKeyHash), "Not signed by admin")
     }
 
     /** Entry point called by the Cardano ledger for minting policy validation.
