@@ -3,12 +3,7 @@ package starter
 import scalus.*
 import scalus.compiler.*
 import scalus.cardano.onchain.plutus.prelude.{*, given}
-import scalus.cardano.onchain.plutus.v1.{
-    PolicyId,
-    PosixTime,
-    PubKeyHash,
-    TokenName
-}
+import scalus.cardano.onchain.plutus.v1.{PolicyId, PosixTime, PubKeyHash, TokenName}
 import scalus.cardano.onchain.plutus.v3.{DataParameterizedValidator, TxInfo}
 import scalus.uplc.builtin.{Data, FromData, ToData}
 
