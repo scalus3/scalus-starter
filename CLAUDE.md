@@ -4,7 +4,7 @@
 
 A Cardano DApp starter project using Scalus. Demonstrates smart contract development,
 minting policies, transaction building, and testing with both an emulator and Yaci DevKit.
-Built with Scala 3.3.8 and Scalus 1.1.0.
+Built with Scala 3.3.8 and Scalus 1.1.1+204-97b5cc08-SNAPSHOT.
 
 ## Commands
 

@@ -76,7 +76,7 @@ class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with S
         val exception = intercept[Exception] {
             MintingPolicy.validate(config.toData)(ctx.toData)
         }
-        assert(exception.getMessage == "Multiple tokens found")
+        assert(exception.getMessage == "Must mint or burn exactly one token type")
 
         assertEval(mintingScript.program $ ctx.toData, Failure("Error evaluated"))
     }
@@ -162,13 +162,13 @@ class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with S
         // run the minting policy script as a Plutus script
         assertEval(
           mintingScript.program $ ctx.toData,
-          Success(ExUnits(memory = 38606, steps = 11971323))
+          Success(ExUnits(memory = 38474, steps = 11920531))
         )
     }
 
     test(s"validator size is ${mintingScript.program.cborEncoded.length} bytes") {
         val size = mintingScript.program.cborEncoded.length
-        assert(size == 497)
+        assert(size == 455)
     }
 
     private def makeScriptContext(

@@ -1,4 +1,4 @@
-val scalusVersion = "1.1.0"
+val scalusVersion = "1.1.1+204-97b5cc08-SNAPSHOT"
 val scalusPluginVersion = scalusVersion
 
 resolvers += Resolver.sonatypeCentralSnapshots

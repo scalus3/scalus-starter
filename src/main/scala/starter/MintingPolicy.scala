@@ -2,10 +2,8 @@ package starter
 
 import scalus.*
 import scalus.compiler.*
-import scalus.cardano.onchain.plutus.prelude.List.{Cons, Nil}
 import scalus.cardano.onchain.plutus.prelude.{*, given}
 import scalus.cardano.onchain.plutus.v1.{
-    IntervalBoundType,
     PolicyId,
     PosixTime,
     PubKeyHash,
@@ -76,22 +74,16 @@ object MintingPolicy extends DataParameterizedValidator {
         ownPolicyId: PolicyId,
         tx: TxInfo
     ): Unit = {
-        // tx.mint contains all tokens being minted/burned in this transaction
-        // We look up our own policy ID to find tokens we're responsible for validating
-        val mintedTokens = tx.mint.tokens(ownPolicyId)
+        val (mintedTokenName, amount) = tx.mint
+            .tokens(ownPolicyId)
+            .singleOrFail("Must mint or burn exactly one token type")
+        require(mintedTokenName === tokenName, "Token name not found")
 
-        // Pattern match to ensure exactly one token type with the correct name
-        // Note: Scalus uses its own List type for on-chain code, not scala.List
-        mintedTokens.toList match
-            case Cons((tokName, amount), Nil) =>
-                require(tokName == tokenName, "Token name not found")
-                // Minting (positive amount) is only allowed before the deadline.
-                // Burning (negative amount) is allowed at any time.
-                if amount > BigInt(0) then
-                    val to = tx.validRange.to.finiteOrFail("Must have finite upper bound")
-                    require(to <= mintDeadline, "Minting deadline passed")
-            case _ =>
-                fail("Multiple tokens found")
+        // Minting (positive amount) is only allowed before the deadline.
+        // Burning (negative amount) is allowed at any time.
+        if amount > 0 then
+            val validTo = tx.validToOrFail("Must have finite upper bound")
+            require(validTo <= mintDeadline, "Minting deadline passed")
 
         // Verify admin authorization - tx.signatories contains all keys that signed
         require(tx.isSignedBy(adminPubKeyHash), "Not signed by admin")
