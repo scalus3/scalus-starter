@@ -162,13 +162,13 @@ class MintingPolicyTest extends AnyFunSuite with ScalaCheckPropertyChecks with S
         // run the minting policy script as a Plutus script
         assertEval(
           mintingScript.program $ ctx.toData,
-          Success(ExUnits(memory = 36614, steps = 11255844))
+          Success(ExUnits(memory = 38474, steps = 11920531))
         )
     }
 
     test(s"validator size is ${mintingScript.program.cborEncoded.length} bytes") {
         val size = mintingScript.program.cborEncoded.length
-        assert(size == 437)
+        assert(size == 455)
     }
 
     private def makeScriptContext(

@@ -1,8 +1,8 @@
-val scalusVersion = "1.2.0"
+val scalusVersion = "1.3.0+167-b683c1a2-SNAPSHOT"
 val scalusPluginVersion = scalusVersion
 
-// Latest Scala 3 LTS version
-ThisBuild / scalaVersion := "3.9.0"
+// Match the compiler plugin in the locally published snapshot.
+ThisBuild / scalaVersion := "3.3.8"
 
 ThisBuild / scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked")
 
@@ -28,6 +28,7 @@ lazy val core = (project in file("."))
       ),
       libraryDependencies ++= Seq(
         "org.scalus" %% "scalus-testkit" % scalusVersion,
+        "org.scalus" %% "scalus-verification-scalatest" % scalusVersion % Test,
         "org.scalatest" %% "scalatest" % "3.2.20" % Test,
         "org.scalatestplus" %% "scalacheck-1-18" % "3.2.19.0" % Test,
         "org.scalacheck" %% "scalacheck" % "1.19.0" % Test
