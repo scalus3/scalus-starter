@@ -48,6 +48,37 @@ sbt test
 
 This validates the minting policy logic using the built-in emulator: wrong token names are rejected, missing signatures fail, correct inputs succeed.
 
+### Run the Minting Policy Verification Tests
+
+This checkout uses the locally published Scalus snapshot `1.3.0+167-b683c1a2-SNAPSHOT`
+and its Scala `3.3.8` compiler plugin. Publish that version of Scalus (including
+`scalus-verification-scalatest` and `scalus-sbt-plugin`) with `publishLocal` in your
+Scalus checkout before building this project; the snapshot is resolved from the local Ivy repository.
+
+`MintingPolicyVerificationTest` proves two properties of the policy's compiled UPLC:
+positive minting after the deadline is rejected, and admin-authorized burning succeeds
+for every finite upper validity bound. Both quantify over all integer amounts and bounds,
+using a transaction with one configured token and the admin's signature. They cover
+`MintingPolicy.mintingPolicy`, rather than the entry point's decoding or every transaction shape.
+The verification library uses its own compilation options for Lean compatibility, so these
+proofs concern the policy source compiled for verification, rather than the deployed script bytes.
+
+Install [elan](https://github.com/leanprover/elan) so `lake` is on `PATH`, and
+[Z3](https://github.com/Z3Prover/z3) (Blaster's tested version is 4.15.2) so `z3`
+is on `PATH`, then run:
+
+```bash
+sbt leanInit leanBuild
+SCALUS_REQUIRE_LEAN=1 sbt 'testOnly starter.MintingPolicyVerificationTest'
+```
+
+`leanInit` creates the project's Lean workspace in `src/test/lean/Core` and unpacks the
+snapshot's Lean library into `.scalus`. `leanBuild` downloads and builds its pinned Lean
+dependencies; the first run needs network access and can take several minutes. Run it again
+after changing the Scalus snapshot or Lean dependencies. No Docker or blockchain is needed.
+Without a ready Lean installation and built workspace, proof tests are canceled;
+`SCALUS_REQUIRE_LEAN=1` makes missing prerequisites fail the run instead.
+
 ### Run the Integration Tests
 
 See the full DApp lifecycle on a real (local) blockchain:
