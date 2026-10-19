@@ -1,4 +1,4 @@
-val scalusVersion = "1.2.0"
+val scalusVersion = "1.3.0"
 val scalusPluginVersion = scalusVersion
 
 // Latest Scala 3 LTS version
